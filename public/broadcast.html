@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Go Live</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #fff;
+            color: #1a1a1a;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+        nav {
+            width: 100%;
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e8e8e8;
+        }
+        .nav-brand {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            text-decoration: none;
+            color: #1a1a1a;
+        }
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 24px;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+            margin-bottom: 8px;
+        }
+        .page-desc {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 36px;
+        }
+
+        /* Form */
+        .form-card {
+            width: 100%;
+            max-width: 440px;
+        }
+        .field {
+            margin-bottom: 20px;
+        }
+        .field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #888;
+            margin-bottom: 6px;
+        }
+        .field input,
+        .field textarea {
+            width: 100%;
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: 14px;
+            color: #1a1a1a;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .field input:focus,
+        .field textarea:focus {
+            border-color: #1a1a1a;
+        }
+        .field textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .btn-primary {
+            display: inline-block;
+            width: 100%;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+            background: #1a1a1a;
+            padding: 11px 24px;
+            border: 1px solid #1a1a1a;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .btn-primary:hover { opacity: 0.8; }
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Result */
+        .result {
+            display: none;
+            width: 100%;
+            max-width: 440px;
+            margin-top: 36px;
+        }
+        .result.visible { display: block; }
+        .result-heading {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #888;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+        }
+        .config-row + .config-row {
+            border-top: 1px solid #f2f2f2;
+        }
+        .config-label {
+            font-size: 13px;
+            color: #666;
+        }
+        .config-value {
+            font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+            font-size: 12px;
+            color: #1a1a1a;
+            background: #f7f7f7;
+            padding: 4px 8px;
+            border-radius: 3px;
+            user-select: all;
+        }
+        .copy-btn {
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            color: #666;
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 3px 8px;
+            cursor: pointer;
+            margin-left: 8px;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .copy-btn:hover {
+            border-color: #1a1a1a;
+            color: #1a1a1a;
+        }
+        .note {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #999;
+            line-height: 1.6;
+        }
+
+        footer {
+            padding: 20px 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #aaa;
+            border-top: 1px solid #f2f2f2;
+        }
+
+        @media (max-width: 640px) {
+            nav { padding: 0 16px; }
+            main { padding: 32px 16px; }
+            .config-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="nav-brand" href="/">Stream</a>
+    </nav>
+
+    <main>
+        <h1>Go Live</h1>
+        <p class="page-desc">Set up your stream details and get your OBS configuration.</p>
+
+        <div class="form-card" id="formCard">
+            <div class="field">
+                <label for="title">Stream Title</label>
+                <input type="text" id="title" placeholder="My Live Stream" maxlength="100" autofocus>
+            </div>
+            <div class="field">
+                <label for="description">Description</label>
+                <textarea id="description" placeholder="What are you streaming today?" maxlength="300"></textarea>
+            </div>
+            <button class="btn-primary" id="createBtn" onclick="createStream()">Generate Stream Key</button>
+        </div>
+
+        <div class="result" id="result">
+            <div class="result-heading">Your OBS Settings</div>
+            <div class="config-row">
+                <span class="config-label">Server</span>
+                <span>
+                    <span class="config-value" id="serverUrl"></span>
+                    <button class="copy-btn" onclick="copy('serverUrl')">Copy</button>
+                </span>
+            </div>
+            <div class="config-row">
+                <span class="config-label">Stream Key</span>
+                <span>
+                    <span class="config-value" id="streamKey"></span>
+                    <button class="copy-btn" onclick="copy('streamKey')">Copy</button>
+                </span>
+            </div>
+            <p class="note">
+                Paste these into OBS under Settings &rarr; Stream &rarr; Custom. 
+                Then click "Start Streaming" in OBS. Your stream will appear on the home page automatically.
+            </p>
+        </div>
+    </main>
+
+    <footer>Built with Node Media Server</footer>
+
+    <script>
+        async function createStream() {
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+
+            if (!title) {
+                document.getElementById('title').focus();
+                return;
+            }
+
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+
+            try {
+                const res = await fetch('/api/streams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, description })
+                });
+                const data = await res.json();
+
+                document.getElementById('serverUrl').textContent = `rtmp://${window.location.hostname}/live`;
+                document.getElementById('streamKey').textContent = data.key;
+                document.getElementById('result').classList.add('visible');
+                document.getElementById('formCard').style.display = 'none';
+            } catch (err) {
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = 'Generate Stream Key';
+            }
+        }
+
+        function copy(id) {
+            const text = document.getElementById(id).textContent;
+            navigator.clipboard.writeText(text);
+            const btn = event.target;
+            btn.textContent = 'Copied';
+            setTimeout(() => btn.textContent = 'Copy', 1500);
+        }
+    </script>
+</body>
+</html>

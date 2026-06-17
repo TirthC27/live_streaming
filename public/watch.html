@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Watch - Stream</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #fff;
+            color: #1a1a1a;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Nav */
+        nav {
+            width: 100%;
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e8e8e8;
+            flex-shrink: 0;
+        }
+        .nav-brand {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            text-decoration: none;
+            color: #1a1a1a;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        #status {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #aaa;
+        }
+        #status.live { color: #1a1a1a; }
+        #status.live::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        /* Layout */
+        .content {
+            flex: 1;
+            display: flex;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 24px;
+            gap: 24px;
+        }
+        .main-col {
+            flex: 1;
+            min-width: 0;
+        }
+        .side-col {
+            width: 300px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Video */
+        #videoContainer {
+            width: 100%;
+            background: #f5f5f5;
+            border: 1px solid #e8e8e8;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16 / 9;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+            background: #000;
+        }
+
+        /* Unmute overlay */
+        #unmuteOverlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.85);
+            z-index: 10;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        #unmuteOverlay:hover { background: rgba(255, 255, 255, 0.9); }
+        #unmuteOverlay span {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a1a1a;
+            padding: 10px 24px;
+            border: 1px solid #1a1a1a;
+            border-radius: 4px;
+            transition: background 0.15s, color 0.15s;
+        }
+        #unmuteOverlay:hover span {
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        /* Stream info bar */
+        .stream-meta {
+            padding: 16px 0;
+            border-bottom: 1px solid #f2f2f2;
+        }
+        .stream-meta h1 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+        }
+        .stream-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stream-meta-desc {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.5;
+            margin-top: 8px;
+            max-width: 65ch;
+        }
+        #viewerCount {
+            font-size: 12px;
+            font-weight: 500;
+            color: #888;
+            white-space: nowrap;
+        }
+
+        /* Ad placeholders */
+        .ad-box {
+            background: #fafafa;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #bbb;
+        }
+        .ad-sidebar-tall {
+            height: 600px;
+        }
+        .ad-sidebar-short {
+            height: 250px;
+        }
+        .ad-below-player {
+            height: 90px;
+            margin-top: 16px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 20px 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #aaa;
+            border-top: 1px solid #f2f2f2;
+            flex-shrink: 0;
+        }
+
+        /* Not found state */
+        .not-found {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 24px;
+            text-align: center;
+        }
+        .not-found h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .not-found p {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 24px;
+        }
+        .not-found a {
+            font-size: 14px;
+            color: #1a1a1a;
+            text-decoration: none;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 1px;
+        }
+        .not-found a:hover { border-color: #1a1a1a; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .content { flex-direction: column; }
+            .side-col {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            .ad-sidebar-tall { height: 90px; flex: 1; min-width: 200px; }
+            .ad-sidebar-short { height: 90px; flex: 1; min-width: 200px; }
+        }
+        @media (max-width: 640px) {
+            nav { padding: 0 16px; }
+            .content { padding: 16px; }
+            #videoContainer { border-radius: 0; border-left: none; border-right: none; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="nav-brand" href="/">Stream</a>
+        <div class="nav-right">
+            <span id="status">Connecting</span>
+        </div>
+    </nav>
+
+    <!-- Main content (hidden until stream loads) -->
+    <div class="content" id="mainContent" style="display:none;">
+        <div class="main-col">
+            <div id="videoContainer">
+                <div id="unmuteOverlay">
+                    <span>Click to unmute</span>
+                </div>
+                <video id="videoPlayer" controls autoplay muted></video>
+            </div>
+
+            <div class="stream-meta">
+                <div class="stream-meta-row">
+                    <h1 id="streamTitle">Loading...</h1>
+                    <span id="viewerCount">0 viewers</span>
+                </div>
+                <p class="stream-meta-desc" id="streamDesc"></p>
+            </div>
+
+            <!-- Ad below player -->
+            <div class="ad-box ad-below-player">Advertisement — 728 x 90</div>
+        </div>
+
+        <div class="side-col">
+            <div class="ad-box ad-sidebar-tall">Advertisement — 300 x 600</div>
+            <div class="ad-box ad-sidebar-short">Advertisement — 300 x 250</div>
+        </div>
+    </div>
+
+    <!-- Not found state -->
+    <div class="not-found" id="notFound" style="display:none;">
+        <h2>Stream not found</h2>
+        <p>This stream may have ended or does not exist.</p>
+        <a href="/">Browse live streams</a>
+    </div>
+
+    <footer>Built with Node Media Server</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/flv.js@latest/dist/flv.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const streamKey = params.get('key');
+
+        const videoElement = document.getElementById('videoPlayer');
+        const statusEl = document.getElementById('status');
+        const viewerCountEl = document.getElementById('viewerCount');
+        const unmuteOverlay = document.getElementById('unmuteOverlay');
+        const mainContent = document.getElementById('mainContent');
+        const notFound = document.getElementById('notFound');
+
+        if (!streamKey) {
+            notFound.style.display = 'flex';
+        } else {
+            init();
+        }
+
+        async function init() {
+            // Fetch stream info
+            try {
+                const res = await fetch(`/api/streams/${streamKey}`);
+                if (!res.ok) {
+                    notFound.style.display = 'flex';
+                    return;
+                }
+                const stream = await res.json();
+                document.title = `${stream.title} - Stream`;
+                document.getElementById('streamTitle').textContent = stream.title;
+                document.getElementById('streamDesc').textContent = stream.description;
+                mainContent.style.display = 'flex';
+            } catch (err) {
+                notFound.style.display = 'flex';
+                return;
+            }
+
+            // Unmute
+            unmuteOverlay.addEventListener('click', () => {
+                videoElement.muted = false;
+                unmuteOverlay.style.display = 'none';
+            });
+
+            // Socket.io for viewer count
+            const socket = io();
+            socket.emit('join-stream', streamKey);
+            socket.on('viewer-count', (count) => {
+                viewerCountEl.textContent = `${count} viewer${count !== 1 ? 's' : ''}`;
+            });
+
+            // FLV Player
+            if (flvjs.isSupported()) {
+                const flvPlayer = flvjs.createPlayer({
+                    type: 'flv',
+                    isLive: true,
+                    hasAudio: true,
+                    hasVideo: true,
+                    url: `${window.location.origin}/live/${streamKey}.flv`
+                });
+                flvPlayer.attachMediaElement(videoElement);
+                flvPlayer.load();
+                flvPlayer.play();
+
+                flvPlayer.on(flvjs.Events.ERROR, (err) => {
+                    console.error('FLV Player Error:', err);
+                    statusEl.textContent = 'Offline';
+                    statusEl.className = '';
+                    setTimeout(() => {
+                        statusEl.textContent = 'Reconnecting';
+                        flvPlayer.unload();
+                        flvPlayer.load();
+                        flvPlayer.play();
+                    }, 5000);
+                });
+
+                flvPlayer.on(flvjs.Events.LOADING_COMPLETE, () => {
+                    statusEl.textContent = 'Ended';
+                    statusEl.className = '';
+                });
+
+                videoElement.addEventListener('playing', () => {
+                    statusEl.textContent = 'Live';
+                    statusEl.className = 'live';
+                });
+            } else {
+                statusEl.textContent = 'Unsupported';
+            }
+        }
+    </script>
+</body>
+</html>
