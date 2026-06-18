@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">StreamX Admin</string>
+    <string name="login_title">StreamX</string>
+    <string name="login_subtitle">Admin Panel</string>
+    <string name="hint_username">Username</string>
+    <string name="hint_password">Password</string>
+    <string name="btn_login">Login</string>
+    <string name="dashboard_title">Stream Manager</string>
+    <string name="dashboard_subtitle">StreamX Admin</string>
+    <string name="section_current_stream">Current Stream URL</string>
+    <string name="section_update_url">Update Stream URL</string>
+    <string name="section_stream_status">Stream Status</string>
+    <string name="section_info">App Info</string>
+    <string name="hint_new_url">Paste new .m3u8 URL here…</string>
+    <string name="btn_paste">Paste from Clipboard</string>
+    <string name="btn_update">Update Stream</string>
+    <string name="btn_check_status">Check Stream</string>
+    <string name="btn_refresh">Refresh</string>
+    <string name="status_default">Tap Check Stream to verify</string>
+    <string name="label_last_updated">Last updated:</string>
+    <string name="label_source">Source:</string>
+    <string name="label_backend_url">Backend URL:</string>
+    <string name="label_app_version">App Version:</string>
+    <string name="label_last_url_update">Last URL Update:</string>
+    <string name="logout">Logout</string>
+</resources>

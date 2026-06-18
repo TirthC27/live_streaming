@@ -5,6 +5,18 @@ node_modules/
 # Build output
 client/build/
 
+# Runtime state
+server/stream-url.json
+
+# Android build
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+
 # Environment files (contain secrets)
 .env
 server/.env
