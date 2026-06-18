@@ -1,56 +1,232 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Live Stream - Viewer</title>
+    <title>Live Stream - GoalStream</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #0a0a0a; color: #fff; font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
-        nav { height: 64px; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222; }
-        .nav-brand { font-size: 20px; font-weight: 800; text-transform: uppercase; text-decoration: none; color: #fff; }
-        .nav-brand span { color: #e63946; }
-        .main-content { max-width: 960px; margin: 40px auto; width: 100%; padding: 0 20px; }
-        #videoContainer { width: 100%; background: #000; border-radius: 8px; overflow: hidden; position: relative; aspect-ratio: 16 / 9; }
-        video { width: 100%; height: 100%; display: block; }
-        #unmuteOverlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); cursor: pointer; color: #fff; font-size: 14px; font-weight: 600; }
-        .ad-banner { width: 100%; height: 90px; border: 2px dashed #444; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #666; font-size: 12px; text-transform: uppercase; margin-top: 24px; background: #141414; }
+        :root {
+            --bg: #0d1117; --bg-card: #161b22; --border: rgba(255,255,255,0.06);
+            --green: #2ea043; --white: #e6edf3; --muted: #8b949e; --dim: #484f58;
+        }
+        html, body {
+            height: 100vh; overflow: hidden;
+            background: var(--bg); color: var(--white);
+            font-family: 'Inter', -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: inherit; text-decoration: none; }
+
+        /* ─── Navbar ─── */
+        .navbar {
+            height: 52px; padding: 0 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: rgba(13,17,23,0.95); backdrop-filter: blur(12px);
+            position: relative; z-index: 100;
+        }
+        .nav-brand {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 18px; font-weight: 800; letter-spacing: -0.03em;
+        }
+        .nav-brand svg { color: var(--green); }
+        .nav-brand span { color: var(--green); }
+        .nav-right { display: flex; align-items: center; gap: 16px; }
+        .nav-back {
+            font-size: 13px; font-weight: 500; color: var(--muted);
+            display: flex; align-items: center; gap: 6px;
+            transition: color 0.15s;
+        }
+        .nav-back:hover { color: var(--white); }
+        .viewer-count {
+            font-size: 12px; font-weight: 500; color: var(--muted);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .viewer-dot {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+            animation: vpulse 1.5s ease infinite;
+        }
+        @keyframes vpulse {
+            0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+        }
+
+        /* ─── Player Layout ─── */
+        .player-layout {
+            height: calc(100vh - 52px);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 16px;
+            gap: 12px;
+        }
+        .player-wrapper {
+            width: 100%; max-width: 1100px;
+            aspect-ratio: 16 / 9;
+            background: #000; border-radius: 10px;
+            overflow: hidden; position: relative;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+            border: 1px solid var(--border);
+        }
+        .player-wrapper iframe,
+        .player-wrapper video {
+            width: 100%; height: 100%; border: none; display: block;
+        }
+
+        /* Loading state */
+        .player-loading {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 16px; background: #000; z-index: 5;
+        }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 3px solid var(--dim); border-top-color: var(--green);
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .player-loading p { font-size: 13px; color: var(--muted); }
+
+        /* Error state */
+        .player-error {
+            position: absolute; inset: 0;
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 12px; background: #000; z-index: 5;
+        }
+        .player-error p { font-size: 13px; color: var(--muted); text-align: center; }
+        .player-error .err-icon { font-size: 32px; }
+
+        /* Stream meta bar */
+        .stream-meta {
+            width: 100%; max-width: 1100px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 4px;
+        }
+        .stream-title {
+            font-size: 15px; font-weight: 700;
+        }
+        .stream-badges {
+            display: flex; gap: 8px;
+        }
+        .badge {
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
+            padding: 3px 8px; border-radius: 4px; letter-spacing: 0.05em;
+        }
+        .badge-live { background: rgba(230,57,70,0.15); color: #e63946; }
+        .badge-hd { background: rgba(46,160,67,0.15); color: var(--green); }
+
+        @media (max-width: 768px) {
+            .player-layout { padding: 8px; }
+            .navbar { padding: 0 14px; }
+        }
     </style>
 </head>
 <body>
-    <nav><a class="nav-brand" href="/">Stream<span>Zone</span></a><div id="viewerCount">0 viewers</div></nav>
-    <main class="main-content">
-        <div id="videoContainer">
-            <div id="unmuteOverlay"><span>Click to unmute</span></div>
-            <video id="videoPlayer" controls autoplay muted></video>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></svg>
+            Goal<span>Stream</span>
+        </a>
+        <div class="nav-right">
+            <div class="viewer-count">
+                <div class="viewer-dot"></div>
+                <span id="viewerCount">0 viewers</span>
+            </div>
+            <a href="/" class="nav-back">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                Back
+            </a>
         </div>
-        <div class="ad-banner">Advertisement</div>
-    </main>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flv.js@latest/dist/flv.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
-    <script>
-        const params = new URLSearchParams(window.location.search);
-        const streamName = params.get('stream') || 'stream';
-        const streamType = params.get('type') || 'flv';
-        const hlsSrc = params.get('src') || '';
-        const videoElement = document.getElementById('videoPlayer');
-        const unmuteOverlay = document.getElementById('unmuteOverlay');
-        const socket = io();
-        socket.on('viewer-count', (count) => document.getElementById('viewerCount').textContent = `${count} viewers`);
-        unmuteOverlay.addEventListener('click', () => { videoElement.muted = false; unmuteOverlay.style.display = 'none'; });
+    </nav>
 
-        if (streamType === 'hls' && hlsSrc) {
-            if (Hls.isSupported()) {
-                const hls = new Hls(); hls.loadSource(hlsSrc); hls.attachMedia(videoElement);
-            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                videoElement.src = hlsSrc;
-            }
-        } else if (flvjs.isSupported()) {
-            const flvPlayer = flvjs.createPlayer({ type: 'flv', url: `${window.location.origin}/live/${streamName}.flv` });
-            flvPlayer.attachMediaElement(videoElement); flvPlayer.load(); flvPlayer.play();
+    <div class="player-layout">
+        <div class="player-wrapper" id="playerWrapper">
+            <!-- Loading -->
+            <div class="player-loading" id="playerLoading">
+                <div class="spinner"></div>
+                <p>Loading stream…</p>
+            </div>
+            <!-- Error -->
+            <div class="player-error" id="playerError">
+                <div class="err-icon">📡</div>
+                <p>Stream unavailable.<br>Please try again later.</p>
+            </div>
+        </div>
+        <div class="stream-meta">
+            <div class="stream-title" id="streamTitle">Live Stream</div>
+            <div class="stream-badges">
+                <span class="badge badge-live">● LIVE</span>
+                <span class="badge badge-hd">HD</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+    // ─── Socket.IO ───
+    const socket = io();
+    socket.on('viewer-count', (c) => {
+        document.getElementById('viewerCount').textContent = `${c} viewer${c !== 1 ? 's' : ''}`;
+    });
+
+    // ─── XOR Decrypt (mirrors server-side encrypt) ───
+    function _xd(hex, key) {
+        let r = '';
+        for (let i = 0; i < hex.length; i += 2) {
+            const byte = parseInt(hex.substr(i, 2), 16);
+            r += String.fromCharCode(byte ^ key.charCodeAt((i / 2) % key.length));
         }
+        return r;
+    }
+
+    // ─── Load Encrypted Stream ───
+    (async function() {
+        const loadingEl = document.getElementById('playerLoading');
+        const errorEl   = document.getElementById('playerError');
+        const wrapper   = document.getElementById('playerWrapper');
+
+        try {
+            // Fetch encrypted source from server
+            const r = await fetch('/api/stream/source?id=stream');
+            if (!r.ok) throw new Error('src');
+
+            const p = await r.json();
+
+            // Decrypt: base64-decode the key, then XOR-decrypt the hex data
+            const k = atob(p._k);
+            const u = _xd(p._d, k);
+
+            // Inject iframe dynamically — URL only exists in JS memory
+            const f = document.createElement('iframe');
+            f.setAttribute('width', '100%');
+            f.setAttribute('height', '100%');
+            f.setAttribute('scrolling', 'no');
+            f.setAttribute('frameborder', '0');
+            f.setAttribute('allowfullscreen', '');
+            f.setAttribute('allow', 'autoplay; encrypted-media; fullscreen; picture-in-picture');
+            f.src = u;
+
+            f.onload = () => { loadingEl.style.display = 'none'; };
+            f.onerror = () => {
+                loadingEl.style.display = 'none';
+                errorEl.style.display = 'flex';
+            };
+
+            wrapper.appendChild(f);
+
+            // Hide loading after 8s max (iframes don't always fire onload)
+            setTimeout(() => { loadingEl.style.display = 'none'; }, 8000);
+
+        } catch (e) {
+            console.error('Stream load failed:', e);
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'flex';
+        }
+    })();
     </script>
 </body>
 </html>

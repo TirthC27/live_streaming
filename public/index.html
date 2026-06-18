@@ -1,44 +1,475 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>StreamZone - Live Sports & Broadcasts</title>
+    <title>GoalStream — Live Football Streaming</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Watch live football matches, scores, and highlights in real-time.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #0a0a0a; color: #fff; font-family: 'Inter', sans-serif; min-height: 100vh; }
-        nav { position: sticky; top: 0; z-index: 100; height: 64px; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; background: rgba(10, 10, 10, 0.95); border-bottom: 1px solid rgba(255,255,255,0.06); }
-        .nav-brand { font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.03em; }
-        .nav-brand span { color: #e63946; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 40px; }
-        .stream-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .stream-card { position: relative; border-radius: 8px; overflow: hidden; background: #141414; text-decoration: none; color: inherit; transition: transform 0.2s; display: flex; flex-direction: column; }
-        .stream-card:hover { transform: translateY(-4px); }
-        .card-thumb { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #222; display: flex; align-items: center; justify-content: center; }
-        .card-body { padding: 16px; }
-        .card-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-        .card-desc { font-size: 12px; color: #888; }
-        .live-badge { position: absolute; top: 10px; left: 10px; background: #e63946; color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; }
-        .ad-banner { width: 100%; height: 90px; border: 2px dashed #444; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #666; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-top: 40px; background: #141414; }
-    </style>
+    <link rel="stylesheet" href="/index.css">
 </head>
 <body>
-    <nav><div class="nav-brand">Stream<span>Zone</span></div></nav>
-    <div class="container">
-        <h2>Live Channels</h2>
-        <div style="margin: 20px 0;"></div>
-        <div id="streamGrid" class="stream-grid">
-            <a class="stream-card" href="/viewer.html?stream=stream">
-                <div class="card-thumb"><div class="live-badge">Live</div></div>
-                <div class="card-body"><div class="card-title">My Stream</div><div class="card-desc">OBS Broadcast</div></div>
-            </a>
-            <a class="stream-card" href="/viewer.html?stream=beinxtra&type=hls&src=https://amg01334-beinsportsllc-beinxtra-samsungau-eiyvc.amagi.tv/playlist/amg01334-beinsportsllc-beinxtra-samsungau/playlist.m3u8">
-                <div class="card-thumb" style="background: #0d4d2e;"></div>
-                <div class="card-body"><div class="card-title">beIN SPORTS Xtra</div><div class="card-desc">Live Sports</div></div>
-            </a>
+
+    <!-- ─── Navbar ──────────────────────────────────────────────────────── -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></svg>
+            Goal<span>Stream</span>
         </div>
-        <div class="ad-banner">Advertisement</div>
-    </div>
+        <ul class="nav-links">
+            <li><a href="/" class="active">Home</a></li>
+            <li><a href="#" id="navLive">Live</a></li>
+            <li><a href="#" id="navHighlights">Highlights</a></li>
+        </ul>
+        <div class="nav-right">
+            <div class="nav-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                Search
+            </div>
+            <div class="nav-avatar"></div>
+        </div>
+    </nav>
+
+    <!-- ─── Main Layout ─────────────────────────────────────────────────── -->
+    <div class="main-layout">
+
+        <!-- ─── Left: Hero + Upcoming ──────────────────────────────────── -->
+        <div class="hero-panel">
+            <div class="hero-image" id="heroImage">
+                <!-- Dynamic CSS-generated match banner -->
+                <div class="hero-banner" id="heroBanner">
+                    <!-- Background layers -->
+                    <div class="banner-bg-pattern"></div>
+                    <div class="banner-glow banner-glow-left" id="bannerGlowLeft"></div>
+                    <div class="banner-glow banner-glow-right" id="bannerGlowRight"></div>
+
+                    <!-- LIVE / Status badge -->
+                    <div class="hero-live-badge" id="heroBadge" style="display:none;">
+                        <div class="pulse"></div> LIVE
+                    </div>
+
+                    <!-- Banner content -->
+                    <div class="banner-content">
+                        <!-- Home team -->
+                        <div class="banner-team banner-team-home">
+                            <img class="banner-crest" id="bannerCrestHome" src="" alt="">
+                            <span class="banner-team-name" id="bannerNameHome">Home</span>
+                        </div>
+
+                        <!-- Center: VS / Score -->
+                        <div class="banner-center">
+                            <div class="banner-comp" id="bannerComp"></div>
+                            <div class="banner-vs" id="bannerVs">VS</div>
+                            <div class="banner-time" id="bannerTime"></div>
+                        </div>
+
+                        <!-- Away team -->
+                        <div class="banner-team banner-team-away">
+                            <img class="banner-crest" id="bannerCrestAway" src="" alt="">
+                            <span class="banner-team-name" id="bannerNameAway">Away</span>
+                        </div>
+                    </div>
+
+                    <!-- Score bar at bottom -->
+                    <div class="banner-score-bar" id="bannerScoreBar" style="display:none;">
+                        <div class="score-bar-inner">
+                            <span class="score-bar-team" id="scoreBarHome">HOM</span>
+                            <span class="score-bar-num" id="scoreBarHomeNum">0</span>
+                            <span class="score-bar-divider">–</span>
+                            <span class="score-bar-num" id="scoreBarAwayNum">0</span>
+                            <span class="score-bar-team" id="scoreBarAway">AWY</span>
+                            <span class="score-bar-minute" id="scoreBarMinute">90'</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming matches -->
+            <div class="upcoming-panel">
+                <div class="section-header">
+                    <h3>Upcoming Matches</h3>
+                </div>
+                <div id="upcomingList">
+                    <div class="empty-state">Loading matches…</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── Right Column ───────────────────────────────────────────── -->
+        <div class="right-column">
+
+            <!-- Match info -->
+            <div class="match-info-block" id="matchInfoBlock">
+                <h1 id="heroTitle">Loading…</h1>
+                <p class="match-desc" id="heroDesc">Fetching the latest live match data…</p>
+                <div class="match-info-actions">
+                    <a href="/viewer.html?stream=stream" class="btn-watch" id="watchLiveBtn">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        Watch Live
+                    </a>
+                    <button class="btn-secondary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                        My Watchlist
+                    </button>
+                </div>
+                <div class="feature-badges">
+                    <div class="feature-badge">
+                        <div class="badge-label">HD</div>
+                        <div class="badge-sub">High Quality</div>
+                    </div>
+                    <div class="feature-badge">
+                        <div class="badge-label">Multi</div>
+                        <div class="badge-sub">Language</div>
+                    </div>
+                    <div class="feature-badge">
+                        <div class="badge-label green">Free</div>
+                        <div class="badge-sub">Access</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Now -->
+            <div class="live-now-section">
+                <div class="section-header">
+                    <h2><span class="live-dot"></span> Live Now</h2>
+                </div>
+                <div class="live-cards-scroll" id="liveCardsScroll">
+                    <div class="empty-state" style="width:100%;">Checking for live matches…</div>
+                </div>
+            </div>
+
+            <!-- Top Highlights -->
+            <div class="highlights-section">
+                <div class="section-header">
+                    <h2>Top Highlights</h2>
+                </div>
+                <div class="highlights-grid" id="highlightsGrid">
+                    <div class="skeleton" style="aspect-ratio:16/9;"></div>
+                    <div class="skeleton" style="aspect-ratio:16/9;"></div>
+                    <div class="skeleton" style="aspect-ratio:16/9;"></div>
+                </div>
+            </div>
+
+        </div><!-- /right-column -->
+    </div><!-- /main-layout -->
+
+    <!-- ─── Socket.IO ────────────────────────────────────────────────────── -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+    // ─── State ──────────────────────────────────────────────────────────────
+    let featuredMatch = null;
+
+    // ─── DOM refs ───────────────────────────────────────────────────────────
+    const heroTitle      = document.getElementById('heroTitle');
+    const heroDesc       = document.getElementById('heroDesc');
+    const heroBadge      = document.getElementById('heroBadge');
+    const heroImage      = document.getElementById('heroImage');
+    // Banner elements
+    const bannerCrestHome  = document.getElementById('bannerCrestHome');
+    const bannerCrestAway  = document.getElementById('bannerCrestAway');
+    const bannerNameHome   = document.getElementById('bannerNameHome');
+    const bannerNameAway   = document.getElementById('bannerNameAway');
+    const bannerComp       = document.getElementById('bannerComp');
+    const bannerVs         = document.getElementById('bannerVs');
+    const bannerTime       = document.getElementById('bannerTime');
+    const bannerScoreBar   = document.getElementById('bannerScoreBar');
+    const scoreBarHome     = document.getElementById('scoreBarHome');
+    const scoreBarAway     = document.getElementById('scoreBarAway');
+    const scoreBarHomeNum  = document.getElementById('scoreBarHomeNum');
+    const scoreBarAwayNum  = document.getElementById('scoreBarAwayNum');
+    const scoreBarMinute   = document.getElementById('scoreBarMinute');
+    const bannerGlowLeft   = document.getElementById('bannerGlowLeft');
+    const bannerGlowRight  = document.getElementById('bannerGlowRight');
+    const liveCardsScroll  = document.getElementById('liveCardsScroll');
+    const upcomingList     = document.getElementById('upcomingList');
+    const highlightsGrid   = document.getElementById('highlightsGrid');
+
+    // ─── Helpers ────────────────────────────────────────────────────────────
+    function shortName(name) {
+        if (!name) return '???';
+        // Common abbreviations
+        const map = {
+            'Manchester United FC': 'Man UTD',
+            'Manchester City FC': 'Man City',
+            'Liverpool FC': 'Liverpool',
+            'FC Barcelona': 'Barcelona',
+            'Real Madrid CF': 'Real Madrid',
+            'Paris Saint-Germain FC': 'PSG',
+            'FC Bayern München': 'Bayern Munich',
+            'Borussia Dortmund': 'Dortmund',
+            'AC Milan': 'AC Milan',
+            'FC Internazionale Milano': 'Inter Milan',
+        };
+        if (map[name]) return map[name];
+        return name.replace(/ FC$| CF$/, '').replace(/^FC /, '');
+    }
+
+    function formatTime(utcDate) {
+        const d = new Date(utcDate);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatDate(utcDate) {
+        const d = new Date(utcDate);
+        const now = new Date();
+        const tomorrow = new Date(); tomorrow.setDate(now.getDate() + 1);
+        if (d.toDateString() === now.toDateString()) return 'Today';
+        if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+        return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function isLive(status) {
+        return status === 'IN_PLAY' || status === 'PAUSED';
+    }
+
+    function getScore(match) {
+        const s = match.score;
+        if (!s) return { home: 0, away: 0 };
+        return {
+            home: s.fullTime?.home ?? s.regularTime?.home ?? s.halfTime?.home ?? 0,
+            away: s.fullTime?.away ?? s.regularTime?.away ?? s.halfTime?.away ?? 0,
+        };
+    }
+
+    // ─── Fetch Matches ──────────────────────────────────────────────────────
+    async function fetchAllMatches() {
+        try {
+            // Get today's and tomorrow's date range
+            const now = new Date();
+            const dateFrom = now.toISOString().split('T')[0];
+            const dateTo = new Date(now.getTime() + 2 * 86400000).toISOString().split('T')[0];
+
+            const res = await fetch(`/api/football/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`);
+            if (!res.ok) throw new Error('API error');
+            const data = await res.json();
+            const matches = data.matches || [];
+
+            // Split into live and upcoming
+            const live = matches.filter(m => isLive(m.status));
+            const upcoming = matches.filter(m => m.status === 'TIMED' || m.status === 'SCHEDULED');
+            const finished = matches.filter(m => m.status === 'FINISHED');
+
+            // Featured match: prefer live, then upcoming, then finished
+            featuredMatch = live[0] || upcoming[0] || finished[0] || null;
+            renderHero(featuredMatch);
+            renderLiveCards(live, finished);
+            renderUpcoming(upcoming);
+        } catch (err) {
+            console.error('Failed to fetch matches:', err);
+            heroTitle.textContent = 'GoalStream';
+            heroDesc.textContent = 'Could not load match data. Retrying in 30s…';
+        }
+    }
+
+    // ─── Render Hero ────────────────────────────────────────────────────────
+    function renderHero(match) {
+        if (!match) {
+            heroTitle.textContent = 'No Matches Right Now';
+            heroDesc.textContent = 'Check back later for live football action.';
+            heroBadge.style.display = 'none';
+            bannerScoreBar.style.display = 'none';
+            bannerVs.textContent = '⚽';
+            bannerNameHome.textContent = '';
+            bannerNameAway.textContent = '';
+            bannerCrestHome.style.display = 'none';
+            bannerCrestAway.style.display = 'none';
+            bannerComp.textContent = '';
+            bannerTime.textContent = '';
+            return;
+        }
+
+        const home = shortName(match.homeTeam?.name);
+        const away = shortName(match.awayTeam?.name);
+        const comp = match.competition?.name || '';
+
+        // Right-column title
+        heroTitle.textContent = `${home} vs ${away} – ${comp}`;
+
+        // Banner team names
+        bannerNameHome.textContent = home;
+        bannerNameAway.textContent = away;
+        bannerComp.textContent = comp;
+
+        // Crests
+        if (match.homeTeam?.crest) {
+            bannerCrestHome.src = match.homeTeam.crest;
+            bannerCrestHome.style.display = 'block';
+        } else { bannerCrestHome.style.display = 'none'; }
+
+        if (match.awayTeam?.crest) {
+            bannerCrestAway.src = match.awayTeam.crest;
+            bannerCrestAway.style.display = 'block';
+        } else { bannerCrestAway.style.display = 'none'; }
+
+        // Competition emblem as subtle glow colour
+        const compEmblem = match.competition?.emblem;
+        if (compEmblem) {
+            heroImage.style.setProperty('--comp-emblem', `url(${compEmblem})`);
+        }
+
+        if (isLive(match.status)) {
+            heroBadge.style.display = 'flex';
+            const sc = getScore(match);
+            bannerVs.textContent = `${sc.home} – ${sc.away}`;
+            bannerVs.classList.add('is-score');
+            bannerTime.textContent = match.minute ? `${match.minute}'` : (match.status === 'PAUSED' ? 'Half Time' : '');
+
+            // Score bar
+            bannerScoreBar.style.display = 'flex';
+            scoreBarHome.textContent = home;
+            scoreBarAway.textContent = away;
+            scoreBarHomeNum.textContent = sc.home;
+            scoreBarAwayNum.textContent = sc.away;
+            scoreBarMinute.textContent = match.minute ? `${match.minute}'` : 'HT';
+
+            heroDesc.textContent = `Watch every moment of this epic ${comp} clash LIVE in HD.`;
+        } else if (match.status === 'FINISHED') {
+            heroBadge.style.display = 'none';
+            const sc = getScore(match);
+            bannerVs.textContent = `${sc.home} – ${sc.away}`;
+            bannerVs.classList.add('is-score');
+            bannerTime.textContent = 'Full Time';
+
+            bannerScoreBar.style.display = 'flex';
+            scoreBarHome.textContent = home;
+            scoreBarAway.textContent = away;
+            scoreBarHomeNum.textContent = sc.home;
+            scoreBarAwayNum.textContent = sc.away;
+            scoreBarMinute.textContent = 'FT';
+
+            heroDesc.textContent = `Final result from ${comp}. Catch the highlights below.`;
+        } else {
+            heroBadge.style.display = 'none';
+            bannerVs.textContent = 'VS';
+            bannerVs.classList.remove('is-score');
+            bannerScoreBar.style.display = 'none';
+            bannerTime.textContent = `${formatDate(match.utcDate)} · ${formatTime(match.utcDate)}`;
+            heroDesc.textContent = `${comp} · ${formatDate(match.utcDate)}, ${formatTime(match.utcDate)}. Don't miss it!`;
+        }
+    }
+
+    // ─── Render Live Cards ──────────────────────────────────────────────────
+    function renderLiveCards(live, finished) {
+        // Show live first, then recent finished
+        const cards = [...live, ...finished.slice(0, 6)];
+        if (cards.length === 0) {
+            liveCardsScroll.innerHTML = '<div class="empty-state" style="width:100%">No live matches right now</div>';
+            return;
+        }
+        liveCardsScroll.innerHTML = cards.map(m => {
+            const sc = getScore(m);
+            const homeName = shortName(m.homeTeam?.name);
+            const awayName = shortName(m.awayTeam?.name);
+            const homeCrest = m.homeTeam?.crest || '';
+            const awayCrest = m.awayTeam?.crest || '';
+            const comp = m.competition?.name || '';
+            const live = isLive(m.status);
+            const minuteText = live ? (m.minute ? `${m.minute}'` : (m.status === 'PAUSED' ? 'HT' : '')) : 'FT';
+            const badgeBg = live ? 'var(--green)' : 'var(--dim)';
+
+            return `
+                <div class="live-card">
+                    <div class="live-card-header">
+                        <span class="live-card-minute" style="background:${badgeBg}">${minuteText}</span>
+                    </div>
+                    <div class="live-card-score">
+                        ${homeCrest ? `<img src="${homeCrest}" alt="${homeName}">` : ''}
+                        <span class="score-num">${sc.home} - ${sc.away}</span>
+                        ${awayCrest ? `<img src="${awayCrest}" alt="${awayName}">` : ''}
+                    </div>
+                    <div class="live-card-teams">
+                        <span>${homeName}</span>
+                        <span>${awayName}</span>
+                    </div>
+                    <div class="live-card-comp">${comp}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ─── Render Upcoming ────────────────────────────────────────────────────
+    function renderUpcoming(upcoming) {
+        if (upcoming.length === 0) {
+            upcomingList.innerHTML = '<div class="empty-state">No upcoming matches today</div>';
+            return;
+        }
+        upcomingList.innerHTML = upcoming.slice(0, 4).map(m => {
+            const homeName = shortName(m.homeTeam?.name);
+            const awayName = shortName(m.awayTeam?.name);
+            const homeCrest = m.homeTeam?.crest || '';
+            const awayCrest = m.awayTeam?.crest || '';
+            const comp = m.competition?.name || '';
+            return `
+                <div class="upcoming-match">
+                    <div class="upcoming-teams">
+                        <div class="upcoming-team-row">
+                            ${homeCrest ? `<img src="${homeCrest}" alt="">` : '<div style="width:18px;height:18px;"></div>'}
+                            <span>${homeName}</span>
+                        </div>
+                        <div class="upcoming-team-row">
+                            ${awayCrest ? `<img src="${awayCrest}" alt="">` : '<div style="width:18px;height:18px;"></div>'}
+                            <span>${awayName}</span>
+                        </div>
+                    </div>
+                    <div class="upcoming-match-info">
+                        ${formatDate(m.utcDate)}, ${formatTime(m.utcDate)}<br>${comp}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ─── Fetch YouTube Highlights ───────────────────────────────────────────
+    async function fetchHighlights() {
+        try {
+            const res = await fetch('/api/youtube/highlights');
+            if (!res.ok) throw new Error('API error');
+            const data = await res.json();
+            const highlights = data.highlights || [];
+
+            if (highlights.length === 0) {
+                highlightsGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">No highlights available</div>';
+                return;
+            }
+
+            // Show up to 3 highlights (one per query ideally)
+            highlightsGrid.innerHTML = highlights.slice(0, 3).map(h => `
+                <a href="${h.url}" target="_blank" rel="noopener" class="highlight-card">
+                    <div class="highlight-thumb">
+                        <img src="${h.thumbnail}" alt="${h.title}" loading="lazy">
+                        <div class="highlight-play">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        </div>
+                    </div>
+                    <div class="highlight-info">
+                        <div class="highlight-title">${h.title}</div>
+                        <div class="highlight-channel">${h.channel}</div>
+                    </div>
+                </a>
+            `).join('');
+        } catch (err) {
+            console.error('Failed to fetch highlights:', err);
+            highlightsGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">Could not load highlights</div>';
+        }
+    }
+
+    // ─── Socket.IO ──────────────────────────────────────────────────────────
+    const socket = io();
+    socket.on('viewer-count', (count) => {
+        // Could display this somewhere in the UI
+        console.log(`Viewers online: ${count}`);
+    });
+
+    // ─── Init ───────────────────────────────────────────────────────────────
+    fetchAllMatches();
+    fetchHighlights();
+
+    // Auto-refresh matches every 30 seconds
+    setInterval(fetchAllMatches, 30000);
+    </script>
+
 </body>
 </html>

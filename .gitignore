@@ -1,7 +1,31 @@
+# Dependencies
 node_modules/
-media/
-.DS_Store
-*.log
-*.tmp
-nohup.out
+*/node_modules/
+
+# Build output
+client/build/
+
+# Environment files (contain secrets)
 .env
+server/.env
+client/.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Coverage
+coverage/
+
+# Misc
+.cache/
