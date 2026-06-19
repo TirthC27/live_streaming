@@ -9,6 +9,7 @@ import {
   RedditLogo,
   DiscordLogo,
   ShareNetwork,
+  X,
 } from "@phosphor-icons/react";
 
 interface Competitor {
@@ -43,42 +44,7 @@ interface Highlight {
 const getLogo = (id: number) =>
   `https://imagecache.365scores.com/image/upload/f_auto,w_48,h_48,c_limit,q_auto:eco,d_Competitors:default1.png/Competitors/${id}`;
 
-// Target Competition IDs (World Cup, Euros, Champions League, Europa League, Top 5 leagues, domestic cups, AFCON)
-const TARGET_COMPETITIONS = new Set([
-  5930, // World Cup
-  364,  // Euros
-  192,  // Champions League (UCL)
-  193,  // Europa League (UEL)
-  7,    // Premier League
-  11,   // La Liga
-  25,   // Bundesliga
-  17,   // Serie A
-  16,   // Ligue 1
-  565,  // FA Cup
-  573,  // EFL Cup
-  592,  // Copa del Rey
-  579,  // DFB Pokal
-  585,  // Coppa Italia
-  588,  // Coupe de France
-  272,  // AFCON
-]);
-
-// Preference ranking helper (lower is more preferred)
-function getCompetitionPreference(compId: number): number {
-  if (compId === 5930) return 1; // World Cup
-  if (compId === 364) return 2;  // Euros
-  if (compId === 192) return 3;  // Champions League
-  if (TARGET_COMPETITIONS.has(compId)) {
-    if (compId === 193) return 5; // Europa League
-    if ([7, 11, 25, 17, 16].includes(compId)) return 4; // Top 5 leagues
-    if ([565, 573, 592, 579, 585, 588].includes(compId)) return 6; // Domestic cups
-    if (compId === 272) return 7; // AFCON
-  }
-  return 8; // Others
-}
-
-/* ─── Left Column Sections ─── */
-
+// FeaturedMatch Component
 function FeaturedMatch({ match }: { match: Game | null }) {
   if (!match) {
     return (
@@ -107,9 +73,7 @@ function FeaturedMatch({ match }: { match: Game | null }) {
         </div>
         <div className="text-center">
           <p className="text-3xl font-bold text-white">
-            {match.homeCompetitor.score >= 0 ? match.homeCompetitor.score : 0}{" "}
-            <span className="text-zinc-600 mx-2">-</span>{" "}
-            {match.awayCompetitor.score >= 0 ? match.awayCompetitor.score : 0}
+            {match.homeCompetitor.score >= 0 ? match.homeCompetitor.score : 0} <span className="text-zinc-600 mx-2">-</span> {match.awayCompetitor.score >= 0 ? match.awayCompetitor.score : 0}
           </p>
           <p className="mt-1 text-xs text-zinc-500">{match.competitionName || "Match"}</p>
         </div>
@@ -122,9 +86,276 @@ function FeaturedMatch({ match }: { match: Game | null }) {
   );
 }
 
-function UpcomingMatches({ matches, showAll, onToggleShowAll }: { matches: Game[]; showAll: boolean; onToggleShowAll: () => void }) {
-  const displayMatches = showAll ? matches : matches.slice(0, 5);
+// AdsPlaceholder Component
+function AdsPlaceholder() {
+  return (
+    <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-white/10 bg-[#1b1843]/50">
+      <span className="text-xs text-zinc-400">Advertisement</span>
+    </div>
+  );
+}
 
+// Target Competition IDs
+const TARGET_COMPETITIONS = new Set([
+  5930, // World Cup
+  364,  // Euros
+  192,  // Champions League (UCL)
+  193,  // Europa League (UEL)
+  7,    // Premier League
+  11,   // La Liga
+  25,   // Bundesliga
+  17,   // Serie A
+  16,   // Ligue 1
+  565,  // FA Cup
+  573,  // EFL Cup
+  592,  // Copa del Rey
+  579,  // DFB Pokal
+  585,  // Coppa Italia
+  588,  // Coupe de France
+  272,  // AFCON
+]);
+
+function getCompetitionPreference(compId: number): number {
+  if (compId === 5930) return 1;
+  if (compId === 364) return 2;
+  if (compId === 192) return 3;
+  if (TARGET_COMPETITIONS.has(compId)) {
+    if (compId === 193) return 5;
+    if ([7, 11, 25, 17, 16].includes(compId)) return 4;
+    if ([565, 573, 592, 579, 585, 588].includes(compId)) return 6;
+    if (compId === 272) return 7;
+  }
+  return 8;
+}
+
+/* ─── Stats Modal (365Scores style) ─── */
+
+interface MatchDetails {
+  events: any[];
+  homeLineup: any;
+  awayLineup: any;
+  topPerformers: any[];
+}
+
+function MatchStatsModal({ game, onClose }: { game: Game; onClose: () => void }) {
+  const [details, setDetails] = useState<MatchDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch(
+          `https://webws.365scores.com/web/game/?appTypeId=5&langId=1&timezoneName=Asia%2FCalcutta&userCountryId=80&gameId=${game.id}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const gameObj = data.game || {};
+          setDetails({
+            events: gameObj.events || [],
+            homeLineup: gameObj.homeCompetitor?.lineups || null,
+            awayLineup: gameObj.awayCompetitor?.lineups || null,
+            topPerformers: gameObj.topPerformers?.categories || [],
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load match statistics", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStats();
+  }, [game.id]);
+
+  // Aggregate stats from lineup members
+  const getAggregatedStats = () => {
+    if (!details) return null;
+    const statsMap: Record<string, { home: number; away: number }> = {
+      "Total Shots": { home: 0, away: 0 },
+      "Shots On Target": { home: 0, away: 0 },
+      "Passes Completed": { home: 0, away: 0 },
+      "Tackles Won": { home: 0, away: 0 },
+      "Fouls Made": { home: 0, away: 0 },
+    };
+
+    const addStats = (lineup: any, key: "home" | "away") => {
+      if (!lineup || !lineup.members) return;
+      lineup.members.forEach((m: any) => {
+        if (!m.stats) return;
+        m.stats.forEach((s: any) => {
+          if (statsMap[s.name]) {
+            const val = parseInt(s.value) || 0;
+            statsMap[s.name][key] += val;
+          }
+        });
+      });
+    };
+
+    addStats(details.homeLineup, "home");
+    addStats(details.awayLineup, "away");
+
+    return statsMap;
+  };
+
+  const aggregated = getAggregatedStats();
+  const hasAggregated = aggregated && Object.values(aggregated).some(val => val.home > 0 || val.away > 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 py-6 backdrop-blur-sm">
+      <div className="relative flex h-full max-h-[85vh] w-full max-w-4xl flex-col rounded-2xl border border-white/10 bg-[#0F1020] overflow-hidden text-white shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/5 bg-[#1b1843] px-6 py-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">
+              {game.competitionName}
+            </span>
+            <span className="text-sm text-zinc-400">{game.statusText}</span>
+          </div>
+          <button onClick={onClose} className="rounded p-1 text-zinc-400 hover:bg-white/5 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Modal body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Scoreboard banner */}
+          <div className="flex items-center justify-between rounded-xl bg-[#1b1843]/50 p-6">
+            <div className="flex flex-col items-center gap-2 w-1/3">
+              <img src={getLogo(game.homeCompetitor.id)} alt="" className="h-16 w-16 object-contain" />
+              <span className="text-center font-bold">{game.homeCompetitor.name}</span>
+            </div>
+            <div className="text-center">
+              <p className="text-4xl font-extrabold tracking-wider">
+                {game.homeCompetitor.score >= 0 ? game.homeCompetitor.score : 0} - {game.awayCompetitor.score >= 0 ? game.awayCompetitor.score : 0}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">{game.gameTimeDisplay || "Ended"}</p>
+            </div>
+            <div className="flex flex-col items-center gap-2 w-1/3">
+              <img src={getLogo(game.awayCompetitor.id)} alt="" className="h-16 w-16 object-contain" />
+              <span className="text-center font-bold">{game.awayCompetitor.name}</span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex h-40 items-center justify-center">
+              <span className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Match Stats */}
+              {hasAggregated && aggregated && (
+                <div className="rounded-xl bg-[#1b1843]/30 p-5">
+                  <h4 className="mb-4 text-sm font-bold uppercase tracking-wider text-accent border-b border-white/5 pb-2">Team Statistics</h4>
+                  <div className="space-y-4">
+                    {Object.entries(aggregated).map(([name, val]) => {
+                      const total = val.home + val.away || 1;
+                      const homePct = Math.round((val.home / total) * 100);
+                      return (
+                        <div key={name} className="space-y-1">
+                          <div className="flex justify-between text-xs text-zinc-300">
+                            <span>{val.home}</span>
+                            <span className="font-semibold text-white">{name}</span>
+                            <span>{val.away}</span>
+                          </div>
+                          <div className="flex h-2 w-full rounded-full bg-zinc-800 overflow-hidden">
+                            <div style={{ width: `${homePct}%` }} className="bg-emerald-500 h-full" />
+                            <div style={{ width: `${100 - homePct}%` }} className="bg-rose-500 h-full" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Match Timeline / Events */}
+              {details?.events && details.events.length > 0 && (
+                <div className="rounded-xl bg-[#1b1843]/30 p-5">
+                  <h4 className="mb-4 text-sm font-bold uppercase tracking-wider text-accent border-b border-white/5 pb-2">Timeline Events</h4>
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                    {details.events.map((evt, idx) => {
+                      const isHome = evt.competitorId === game.homeCompetitor.id;
+                      return (
+                        <div key={idx} className={`flex items-center gap-3 text-xs ${isHome ? "" : "flex-row-reverse"}`}>
+                          <span className="font-semibold text-accent">{evt.gameTimeDisplay}</span>
+                          <span className="text-zinc-300">{evt.eventType?.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── List Modal (View All) ─── */
+
+function ListModal({ title, matches, onClose, onSelectMatch: _onSelectMatch }: { title: string; matches: Game[]; onClose: () => void; onSelectMatch: (m: Game) => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 py-6 backdrop-blur-sm">
+      <div className="relative flex h-full max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-white/10 bg-[#0F1020] overflow-hidden text-white shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/5 bg-[#1b1843] px-6 py-4">
+          <h3 className="text-lg font-bold text-white">{title}</h3>
+          <button onClick={onClose} className="rounded p-1 text-zinc-400 hover:bg-white/5 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body list */}
+        <div className="flex-1 overflow-y-auto p-6 divide-y divide-zinc-800">
+          {matches.map((m) => (
+            <div
+              key={m.id}
+              className="flex items-center justify-between py-4 px-3 rounded-lg"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  <img src={getLogo(m.homeCompetitor.id)} alt="" className="h-8 w-8 rounded-full border-2 border-zinc-900 object-contain bg-zinc-800" />
+                  <img src={getLogo(m.awayCompetitor.id)} alt="" className="h-8 w-8 rounded-full border-2 border-zinc-900 object-contain bg-zinc-800" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">
+                    {m.homeCompetitor.name} vs {m.awayCompetitor.name}
+                  </p>
+                  <p className="text-[11px] text-zinc-500">{m.competitionName}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                {m.shortStatusText === "FT" || m.shortStatusText === "Ended" ? (
+                  <span className="rounded bg-zinc-800 px-2 py-1 text-xs font-bold">
+                    {m.homeCompetitor.score} - {m.awayCompetitor.score}
+                  </span>
+                ) : (
+                  <p className="text-xs text-emerald-400">
+                    {new Date(m.startTime).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
+                    {new Date(m.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Left Column Sections ─── */
+
+function FeaturedMatchRow({ match, onSelect: _onSelect }: { match: Game | null; onSelect: (g: Game) => void }) {
+  return (
+    <div>
+      <FeaturedMatch match={match} />
+    </div>
+  );
+}
+
+function UpcomingMatchesRow({ matches, onSelect: _onSelect, onViewAll }: { matches: Game[]; onSelect: (g: Game) => void; onViewAll: () => void }) {
   return (
     <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -133,17 +364,17 @@ function UpcomingMatches({ matches, showAll, onToggleShowAll }: { matches: Game[
           Upcoming Matches
         </h3>
         {matches.length > 5 && (
-          <button onClick={onToggleShowAll} className="text-xs text-zinc-500 hover:text-accent transition-colors">
-            {showAll ? "Show Less" : "View All"}
+          <button onClick={onViewAll} className="text-xs text-zinc-500 hover:text-accent transition-colors">
+            View All
           </button>
         )}
       </div>
-      {displayMatches.length === 0 ? (
+      {matches.length === 0 ? (
         <p className="text-sm text-zinc-400">No scheduled matches for target leagues</p>
       ) : (
         <div className="space-y-0 divide-y divide-zinc-800">
-          {displayMatches.map((m) => (
-            <div key={m.id} className="flex items-center justify-between py-3">
+          {matches.slice(0, 5).map((m) => (
+            <div key={m.id} className="flex items-center justify-between py-3 rounded px-2 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-2">
                   <img src={getLogo(m.homeCompetitor.id)} alt={m.homeCompetitor.name} className="h-7 w-7 rounded-full border-2 border-zinc-900 object-contain bg-zinc-800" />
@@ -170,19 +401,19 @@ function UpcomingMatches({ matches, showAll, onToggleShowAll }: { matches: Game[
   );
 }
 
-function Last5Matches({ matches }: { matches: Game[] }) {
+function Last5MatchesRow({ matches, onSelect: _onSelect }: { matches: Game[]; onSelect: (g: Game) => void }) {
   return (
     <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
       <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-white">
         <Trophy size={18} className="text-amber-400" />
-        Last 5 Matches
+        Prev Matches
       </h3>
       {matches.length === 0 ? (
         <p className="text-sm text-zinc-400">No recent target matches</p>
       ) : (
         <div className="space-y-0 divide-y divide-zinc-800">
           {matches.map((m) => (
-            <div key={m.id} className="flex items-center justify-between py-3">
+            <div key={m.id} className="flex items-center justify-between py-3 rounded px-2 transition-colors">
               <div className="flex items-center gap-3">
                 <img src={getLogo(m.homeCompetitor.id)} alt={m.homeCompetitor.name} className="h-6 w-6 object-contain" />
                 <span className="text-sm text-zinc-300 w-24 truncate">{m.homeCompetitor.symbolicName || m.homeCompetitor.name}</span>
@@ -202,14 +433,6 @@ function Last5Matches({ matches }: { matches: Game[] }) {
   );
 }
 
-function AdsPlaceholder() {
-  return (
-    <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-white/10 bg-[#1b1843]/50">
-      <span className="text-xs text-zinc-400">Advertisement</span>
-    </div>
-  );
-}
-
 /* ─── Right Column Sections ─── */
 
 function TopHighlights({ highlights }: { highlights: Highlight[] }) {
@@ -217,7 +440,6 @@ function TopHighlights({ highlights }: { highlights: Highlight[] }) {
     <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-base font-bold text-white">Top Highlights</h3>
-        <button className="text-xs text-zinc-500 transition-colors hover:text-accent">View All</button>
       </div>
       {highlights.length === 0 ? (
         <p className="text-sm text-zinc-400">No highlights loaded</p>
@@ -248,9 +470,7 @@ function TopHighlights({ highlights }: { highlights: Highlight[] }) {
   );
 }
 
-function LiveNow({ matches, showAll, onToggleShowAll }: { matches: Game[]; showAll: boolean; onToggleShowAll: () => void }) {
-  const displayMatches = showAll ? matches : matches.slice(0, 5);
-
+function LiveNow({ matches, onSelect: _onSelect, onViewAll }: { matches: Game[]; onSelect: (g: Game) => void; onViewAll: () => void }) {
   return (
     <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -262,19 +482,19 @@ function LiveNow({ matches, showAll, onToggleShowAll }: { matches: Game[]; showA
           Live Now
         </h3>
         {matches.length > 5 && (
-          <button onClick={onToggleShowAll} className="text-xs text-zinc-500 hover:text-accent transition-colors">
-            {showAll ? "Show Less" : "View All"}
+          <button onClick={onViewAll} className="text-xs text-zinc-500 hover:text-accent transition-colors">
+            View All
           </button>
         )}
       </div>
-      {displayMatches.length === 0 ? (
+      {matches.length === 0 ? (
         <p className="text-sm text-zinc-400">No target live matches right now</p>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-2">
-          {displayMatches.map((m) => (
+          {matches.slice(0, 5).map((m) => (
             <div
               key={m.id}
-              className="min-w-[200px] flex-shrink-0 rounded-lg border border-white/5 bg-[#1b1843] p-4"
+              className="min-w-[200px] flex-shrink-0 rounded-lg border border-white/5 bg-[#1b1843] p-4 transition-colors"
             >
               <span className="mb-3 inline-block rounded bg-red-500/20 px-2 py-0.5 text-[10px] font-bold text-red-400 animate-pulse">
                 {m.gameTimeDisplay || "LIVE"}
@@ -343,7 +563,7 @@ function ShareBar() {
   );
 }
 
-/* ─── Page ─── */
+/* ─── Main Page ─── */
 
 export default function MatchesPage() {
   const [live, setLive] = useState<Game[]>([]);
@@ -352,9 +572,10 @@ export default function MatchesPage() {
   const [featured, setFeatured] = useState<Game | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   
-  const [showAllLive, setShowAllLive] = useState(false);
-  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
-  
+  // Modals state
+  const [selectedMatch, setSelectedMatch] = useState<Game | null>(null);
+  const [activeListModal, setActiveListModal] = useState<{ title: string; matches: Game[] } | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -514,7 +735,6 @@ export default function MatchesPage() {
           };
         }));
 
-        // Set state
         setHighlights(dynamicHighlights);
       } catch (err) {
         console.error("Failed to load 365scores data:", err);
@@ -555,13 +775,13 @@ export default function MatchesPage() {
           <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
             {/* Left column */}
             <div className="space-y-6">
-              <FeaturedMatch match={featured} />
-              <UpcomingMatches
+              <FeaturedMatchRow match={featured} onSelect={setSelectedMatch} />
+              <UpcomingMatchesRow
                 matches={upcoming}
-                showAll={showAllUpcoming}
-                onToggleShowAll={() => setShowAllUpcoming(!showAllUpcoming)}
+                onSelect={setSelectedMatch}
+                onViewAll={() => setActiveListModal({ title: "All Upcoming Matches", matches: upcoming })}
               />
-              <Last5Matches matches={finished} />
+              <Last5MatchesRow matches={finished} onSelect={setSelectedMatch} />
               <AdsPlaceholder />
             </div>
 
@@ -570,8 +790,8 @@ export default function MatchesPage() {
               <TopHighlights highlights={highlights} />
               <LiveNow
                 matches={live}
-                showAll={showAllLive}
-                onToggleShowAll={() => setShowAllLive(!showAllLive)}
+                onSelect={setSelectedMatch}
+                onViewAll={() => setActiveListModal({ title: "All Live Matches", matches: live })}
               />
               <ShareBar />
               <AdsPlaceholder />
@@ -579,6 +799,21 @@ export default function MatchesPage() {
           </div>
         )}
       </div>
+
+      {/* Stats Modal */}
+      {selectedMatch && (
+        <MatchStatsModal game={selectedMatch} onClose={() => setSelectedMatch(null)} />
+      )}
+
+      {/* List Modal */}
+      {activeListModal && (
+        <ListModal
+          title={activeListModal.title}
+          matches={activeListModal.matches}
+          onClose={() => setActiveListModal(null)}
+          onSelectMatch={() => {}}
+        />
+      )}
     </div>
   );
 }
