@@ -1,7 +1,6 @@
 import Hero from "../components/Hero";
 import TrendingPosts from "../components/TrendingPosts";
 import {
-  SoccerBall,
   TelegramLogo,
   XLogo,
   RedditLogo,
@@ -12,11 +11,11 @@ import {
 function ShareBar() {
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-10">
-      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-white/5 bg-zinc-800/40 px-6 py-5">
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-white/5 bg-background px-6 py-5">
         {/* Avatar + text */}
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15">
-            <SoccerBall size={24} weight="fill" className="text-accent" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 overflow-hidden">
+            <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExempjZmVzbGZtNXl6MHM1YWpmMnV5NDl3YzFyamJudnNsOXk3ZjkxYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5UqWIbfRyfTjaRulMO/giphy.gif" alt="Football" className="h-full w-full object-cover" />
           </div>
           <div>
             <p className="text-sm font-semibold text-white">Share FootyStream</p>
