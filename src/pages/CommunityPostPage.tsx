@@ -39,11 +39,11 @@ export default function CommunityPostPage() {
       {/* Hero banner */}
       <div className="relative mb-8 overflow-hidden rounded-2xl">
         <img
-          src="https://picsum.photos/seed/football-community-banner/1400/400"
-          alt=""
-          className="h-48 w-full object-cover md:h-64"
+          src="/placeholder.webp"
+          alt="Banner"
+          className="h-80 w-full object-cover object-[50%_20%] md:h-96"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-zinc-950/60 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
           <h1 className="text-2xl font-bold text-white md:text-4xl">
             FootyStream <span className="text-accent">Connect</span>
@@ -57,10 +57,10 @@ export default function CommunityPostPage() {
           {CATEGORIES.map((cat) => (
             <div
               key={cat.name}
-              className="flex items-center justify-between rounded-lg px-4 py-2.5 text-sm text-zinc-400 transition-colors hover:bg-white/5 hover:text-white"
+              className="flex items-center justify-between rounded-lg px-4 py-2.5 text-sm text-zinc-400 transition-colors hover:bg-background hover:text-white"
             >
               <span>#{cat.name}</span>
-              <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-300">
+              <span className="rounded-md bg-zinc-900 px-2 py-0.5 text-xs font-medium text-zinc-300">
                 {cat.count} posts
               </span>
             </div>
@@ -86,7 +86,7 @@ export default function CommunityPostPage() {
           </Link>
 
           {/* Post card */}
-          <article className="rounded-xl border border-white/5 bg-[#433f81]/40 p-6 md:p-8">
+          <article className="rounded-xl border border-white/5 bg-zinc-900/50 p-6 md:p-8">
             <div className="flex gap-4">
               {/* Vote column */}
               <div className="hidden flex-col items-center gap-1 pt-1 sm:flex">
@@ -145,14 +145,14 @@ export default function CommunityPostPage() {
           </article>
 
           {/* Comment box */}
-          <div className="mt-6 rounded-xl border border-white/5 bg-[#433f81]/40 p-6">
+          <div className="mt-6 rounded-xl border border-white/5 bg-zinc-900/50 p-6">
             <p className="mb-3 text-sm text-zinc-400">
               Comment as <span className="font-semibold text-white">You</span>
             </p>
             <textarea
               placeholder="Share your thoughts..."
               rows={4}
-              className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:border-accent/50"
+              className="w-full resize-none rounded-lg border border-zinc-800 bg-background px-4 py-3 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:border-accent/50"
             />
             <div className="mt-3 flex justify-end">
               <button className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-accent/90 active:scale-[0.97]">
