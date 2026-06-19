@@ -401,29 +401,41 @@ function UpcomingMatchesRow({ matches, onSelect: _onSelect, onViewAll }: { match
   );
 }
 
-function Last5MatchesRow({ matches, onSelect: _onSelect }: { matches: Game[]; onSelect: (g: Game) => void }) {
+function Last5MatchesRow({ matches, onSelect: _onSelect, onViewAll }: { matches: Game[]; onSelect: (g: Game) => void; onViewAll: () => void }) {
   return (
     <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
-      <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-white">
-        <Trophy size={18} className="text-amber-400" />
-        Prev Matches
-      </h3>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-base font-bold text-white">
+          <Trophy size={18} className="text-amber-400" />
+          Prev Matches
+        </h3>
+        {matches.length > 5 && (
+          <button onClick={onViewAll} className="text-xs text-zinc-500 hover:text-accent transition-colors">
+            View All
+          </button>
+        )}
+      </div>
       {matches.length === 0 ? (
         <p className="text-sm text-zinc-400">No recent target matches</p>
       ) : (
         <div className="space-y-0 divide-y divide-zinc-800">
-          {matches.map((m) => (
-            <div key={m.id} className="flex items-center justify-between py-3 rounded px-2 transition-colors">
-              <div className="flex items-center gap-3">
-                <img src={getLogo(m.homeCompetitor.id)} alt={m.homeCompetitor.name} className="h-6 w-6 object-contain" />
-                <span className="text-sm text-zinc-300 w-24 truncate">{m.homeCompetitor.symbolicName || m.homeCompetitor.name}</span>
+          {matches.slice(0, 5).map((m) => (
+            <div key={m.id} className="flex items-center justify-between py-3 rounded px-1 transition-colors gap-2">
+              {/* Home Team */}
+              <div className="flex items-center gap-2 w-1/3 min-w-0">
+                <img src={getLogo(m.homeCompetitor.id)} alt="" className="h-6 w-6 object-contain flex-shrink-0" />
+                <span className="text-xs sm:text-sm text-zinc-300 truncate">{m.homeCompetitor.symbolicName || m.homeCompetitor.name}</span>
               </div>
-              <span className="rounded-md bg-zinc-800 px-3 py-1 text-sm font-bold text-white">
-                {m.homeCompetitor.score} - {m.awayCompetitor.score}
-              </span>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-zinc-300 w-24 truncate text-right">{m.awayCompetitor.symbolicName || m.awayCompetitor.name}</span>
-                <img src={getLogo(m.awayCompetitor.id)} alt={m.awayCompetitor.name} className="h-6 w-6 object-contain" />
+              {/* Score Badge */}
+              <div className="flex justify-center flex-shrink-0">
+                <span className="rounded-md bg-zinc-800 px-2.5 py-1 text-xs sm:text-sm font-bold text-white whitespace-nowrap">
+                  {m.homeCompetitor.score} - {m.awayCompetitor.score}
+                </span>
+              </div>
+              {/* Away Team */}
+              <div className="flex items-center gap-2 w-1/3 min-w-0 justify-end">
+                <span className="text-xs sm:text-sm text-zinc-300 truncate text-right">{m.awayCompetitor.symbolicName || m.awayCompetitor.name}</span>
+                <img src={getLogo(m.awayCompetitor.id)} alt="" className="h-6 w-6 object-contain flex-shrink-0" />
               </div>
             </div>
           ))}
@@ -444,7 +456,7 @@ function TopHighlights({ highlights }: { highlights: Highlight[] }) {
       {highlights.length === 0 ? (
         <p className="text-sm text-zinc-400">No highlights loaded</p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {highlights.map((h, i) => (
             <a key={i} href={h.url} target="_blank" rel="noopener noreferrer" className="group cursor-pointer block">
               <div className="relative overflow-hidden rounded-lg">
@@ -470,7 +482,24 @@ function TopHighlights({ highlights }: { highlights: Highlight[] }) {
   );
 }
 
-function LiveNow({ matches, onSelect: _onSelect, onViewAll }: { matches: Game[]; onSelect: (g: Game) => void; onViewAll: () => void }) {
+function LiveNow({ matches: _matches, onSelect: _onSelect, onViewAll: _onViewAll }: { matches: Game[]; onSelect: (g: Game) => void; onViewAll: () => void }) {
+  const hardcodedStreams = [
+    {
+      id: "bein",
+      title: "BeIN Sports Xtra",
+      url: "https://amg01334-beinsportsllc-beinxtra-samsungau-eiyvc.amagi.tv/playlist/amg01334-beinsportsllc-beinxtra-samsungau/playlist.m3u8",
+      thumbnail: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=300&q=80",
+      description: "Live Sports Broadcast"
+    },
+    {
+      id: "google",
+      title: "Google Linear HLS",
+      url: "https://dai.google.com/linear/hls/pb/event/GxrCGmwST0ixsrc_QgB6qw/stream/2a13ecad-d853-4070-bf97-6e0f116cbda4:TPE/master.m3u8",
+      thumbnail: "https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&w=300&q=80",
+      description: "Direct Event Stream"
+    }
+  ];
+
   return (
     <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -481,42 +510,30 @@ function LiveNow({ matches, onSelect: _onSelect, onViewAll }: { matches: Game[];
           </span>
           Live Now
         </h3>
-        {matches.length > 5 && (
-          <button onClick={onViewAll} className="text-xs text-zinc-500 hover:text-accent transition-colors">
-            View All
-          </button>
-        )}
       </div>
-      {matches.length === 0 ? (
-        <p className="text-sm text-zinc-400">No target live matches right now</p>
-      ) : (
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {matches.slice(0, 5).map((m) => (
-            <div
-              key={m.id}
-              className="min-w-[200px] flex-shrink-0 rounded-lg border border-white/5 bg-[#1b1843] p-4 transition-colors"
-            >
-              <span className="mb-3 inline-block rounded bg-red-500/20 px-2 py-0.5 text-[10px] font-bold text-red-400 animate-pulse">
-                {m.gameTimeDisplay || "LIVE"}
-              </span>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-col items-center gap-1.5">
-                  <img src={getLogo(m.homeCompetitor.id)} alt={m.homeCompetitor.name} className="h-8 w-8 object-contain" />
-                  <span className="text-[11px] text-zinc-400">{m.homeCompetitor.symbolicName || m.homeCompetitor.name}</span>
-                </div>
-                <span className="text-lg font-bold text-white">
-                  {m.homeCompetitor.score >= 0 ? m.homeCompetitor.score : 0} - {m.awayCompetitor.score >= 0 ? m.awayCompetitor.score : 0}
-                </span>
-                <div className="flex flex-col items-center gap-1.5">
-                  <img src={getLogo(m.awayCompetitor.id)} alt={m.awayCompetitor.name} className="h-8 w-8 object-contain" />
-                  <span className="text-[11px] text-zinc-400">{m.awayCompetitor.symbolicName || m.awayCompetitor.name}</span>
-                </div>
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        {hardcodedStreams.map((stream, idx) => (
+          <Link
+            key={idx}
+            to={`/watch/${stream.id}`}
+            className="min-w-[240px] flex-shrink-0 rounded-lg border border-white/5 bg-[#1b1843] overflow-hidden hover:bg-white/5 transition-colors group block"
+          >
+            <div className="relative h-28 overflow-hidden">
+              <img src={stream.thumbnail} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <Play size={24} weight="fill" className="text-white drop-shadow-md" />
               </div>
-              <p className="mt-2 text-center text-[11px] text-zinc-500">{m.competitionName || "Soccer"}</p>
+              <span className="absolute top-2 left-2 rounded bg-red-500 px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider animate-pulse">
+                Live Stream
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="p-3">
+              <p className="text-xs font-semibold text-white truncate">{stream.title}</p>
+              <p className="text-[10px] text-zinc-400 mt-1 truncate">{stream.description}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
@@ -526,15 +543,15 @@ function ShareBar() {
     <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
       <div className="flex flex-col gap-6">
         {/* Top row: Avatar + Text + Shares */}
-        <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/15 overflow-hidden">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/15 overflow-hidden flex-shrink-0">
             <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExempjZmVzbGZtNXl6MHM1YWpmMnV5NDl3YzFyamJudnNsOXk3ZjkxYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5UqWIbfRyfTjaRulMO/giphy.gif" alt="Football" className="h-full w-full object-cover" />
           </div>
-          <div>
+          <div className="min-w-[150px]">
             <p className="text-lg font-semibold text-pink-300">Share FootyStream</p>
             <p className="text-sm text-zinc-300">to your friends</p>
           </div>
-          <div className="ml-4 flex flex-col items-center">
+          <div className="sm:ml-auto flex flex-col items-center">
             <span className="text-2xl font-semibold text-zinc-400">2k</span>
             <span className="text-xs text-zinc-500">Shares</span>
           </div>
@@ -686,7 +703,7 @@ export default function MatchesPage() {
 
         setLive(liveMatches);
         setUpcoming(upcomingMatches);
-        setFinished(finishedMatches.slice(0, 5));
+        setFinished(finishedMatches);
         setFeatured(updatedFeatured);
 
         // Generate highlights list based on the top 4 finished matches
@@ -747,12 +764,12 @@ export default function MatchesPage() {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen w-full overflow-x-hidden"
       style={{
         background: "linear-gradient(180deg, #15151E 0%, #0F1020 20%, #090B14 100%)",
       }}
     >
-      <div className="mx-auto max-w-[1400px] px-6 py-8">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 py-8">
         {/* Page header */}
         <div className="mb-8 flex items-center justify-end">
           <Link
@@ -772,26 +789,30 @@ export default function MatchesPage() {
           </div>
         ) : (
           /* Two-column layout */
-          <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
-            {/* Left column */}
-            <div className="space-y-6">
+          <div className="grid gap-8 lg:grid-cols-[380px_1fr] w-full max-w-full">
+            {/* Left column - order-2 on mobile so highlights/streams appear first */}
+            <div className="space-y-6 order-2 lg:order-1 min-w-0 w-full">
               <FeaturedMatchRow match={featured} onSelect={setSelectedMatch} />
               <UpcomingMatchesRow
                 matches={upcoming}
                 onSelect={setSelectedMatch}
                 onViewAll={() => setActiveListModal({ title: "All Upcoming Matches", matches: upcoming })}
               />
-              <Last5MatchesRow matches={finished} onSelect={setSelectedMatch} />
+              <Last5MatchesRow
+                matches={finished}
+                onSelect={setSelectedMatch}
+                onViewAll={() => setActiveListModal({ title: "All Previous Matches", matches: finished })}
+              />
               <AdsPlaceholder />
             </div>
 
-            {/* Right column */}
-            <div className="space-y-6">
+            {/* Right column - order-1 on mobile */}
+            <div className="space-y-6 order-1 lg:order-2 min-w-0 w-full">
               <TopHighlights highlights={highlights} />
               <LiveNow
                 matches={live}
                 onSelect={setSelectedMatch}
-                onViewAll={() => setActiveListModal({ title: "All Live Matches", matches: live })}
+                onViewAll={() => {}}
               />
               <ShareBar />
               <AdsPlaceholder />

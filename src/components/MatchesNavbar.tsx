@@ -24,8 +24,8 @@ export default function MatchesNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-[#1b1843]/80 backdrop-blur-xl border-b border-white/5">
-      <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-6 py-4">
+    <header className="sticky top-0 z-40 bg-[#1b1843]/80 backdrop-blur-xl border-b border-white/5 w-full">
+      <div className="flex max-w-[1400px] items-center gap-4 px-6 py-4 mx-auto">
         {/* Hamburger */}
         <button
           className="rounded p-1.5 text-zinc-400 transition-colors hover:text-white md:hidden"
