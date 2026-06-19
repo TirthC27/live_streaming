@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Watch from './pages/Watch';
 import About from './pages/About';
+import Matches from './pages/Matches';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/watch" element={<Watch />} />
+          <Route path="/matches" element={<Matches />} />
           <Route path="/about" element={<About />} />
         </Routes>
       </main>

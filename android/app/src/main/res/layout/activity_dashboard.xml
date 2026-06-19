@@ -30,7 +30,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- ===== CARD 1: Current Stream URL ===== -->
+            <!-- ===== CARD 1: Current Stream Config ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -50,23 +50,23 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/section_current_stream"
+                        android:text="📡  Current Stream Config"
                         android:textColor="@color/colorTextPrimary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
                     <ImageButton
-                        android:id="@+id/btnRefresh"
+                        android:id="@+id/btnRefreshConfig"
                         android:layout_width="36dp"
                         android:layout_height="36dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/btn_refresh"
+                        android:contentDescription="Refresh"
                         android:src="@android:drawable/ic_menu_rotate"
                         app:tint="@color/colorTextSecondary" />
                 </LinearLayout>
 
                 <ProgressBar
-                    android:id="@+id/progressCurrentUrl"
+                    android:id="@+id/progressConfig"
                     style="?android:attr/progressBarStyleSmall"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -74,38 +74,85 @@
                     android:indeterminateTint="@color/colorAccent"
                     android:visibility="gone" />
 
+                <!-- Active URL -->
                 <TextView
-                    android:id="@+id/tvCurrentUrl"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Active URL:"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvActiveUrl"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="4dp"
                     android:ellipsize="end"
                     android:maxLines="2"
                     android:text="Loading..."
+                    android:textColor="@color/colorTextPrimary"
+                    android:textIsSelectable="true"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvActiveLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Label: —"
+                    android:textColor="@color/colorStatusDefault"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvActiveUpdatedAt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Updated: —"
+                    android:textColor="@color/colorStatusDefault"
+                    android:textSize="12sp" />
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="12dp"
+                    android:background="@color/colorBorder" />
+
+                <!-- Secondary URL -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Secondary URL:"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvSecondaryUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="Not set"
                     android:textColor="@color/colorTextSecondary"
                     android:textIsSelectable="true"
                     android:textSize="13sp" />
 
                 <TextView
-                    android:id="@+id/tvLastUpdated"
+                    android:id="@+id/tvSecondaryLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="Last updated: —"
-                    android:textColor="@color/colorStatusDefault"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:id="@+id/tvSource"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Source: —"
+                    android:layout_marginTop="4dp"
+                    android:text="Label: —"
                     android:textColor="@color/colorStatusDefault"
                     android:textSize="12sp" />
             </LinearLayout>
 
-            <!-- ===== CARD 2: Update Stream URL ===== -->
+            <!-- ===== CARD 2: Update Active Stream ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -117,19 +164,33 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/section_update_url"
+                    android:text="🔴  Update Active Stream"
                     android:textColor="@color/colorTextPrimary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <EditText
-                    android:id="@+id/etNewUrl"
+                    android:id="@+id/etActiveLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:background="@drawable/edit_text_background"
+                    android:hint="Stream label (e.g. Main HD)"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:padding="12dp"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textColorHint="@color/colorStatusDefault"
+                    android:textSize="13sp" />
+
+                <EditText
+                    android:id="@+id/etActiveUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/edit_text_background"
                     android:gravity="top|start"
-                    android:hint="@string/hint_new_url"
+                    android:hint="Paste .m3u8 URL"
                     android:inputType="textMultiLine|textUri"
                     android:minLines="3"
                     android:maxLines="5"
@@ -138,7 +199,7 @@
                     android:textSize="13sp" />
 
                 <Button
-                    android:id="@+id/btnPaste"
+                    android:id="@+id/btnPasteActive"
                     android:layout_width="match_parent"
                     android:layout_height="44dp"
                     android:layout_marginTop="10dp"
@@ -149,19 +210,19 @@
                     android:textSize="14sp" />
 
                 <Button
-                    android:id="@+id/btnUpdate"
+                    android:id="@+id/btnUpdateActive"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:layout_marginTop="10dp"
                     android:background="@drawable/btn_red_rounded"
-                    android:text="🔄  Update Stream"
+                    android:text="🔄  Update Active URL"
                     android:textAllCaps="false"
                     android:textColor="@color/white"
                     android:textSize="15sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- ===== CARD 3: Stream Status ===== -->
+            <!-- ===== CARD 3: Update Secondary Stream ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -173,11 +234,82 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/section_stream_status"
+                    android:text="🔵  Update Backup Stream"
                     android:textColor="@color/colorTextPrimary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
+                <EditText
+                    android:id="@+id/etSecondaryLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/edit_text_background"
+                    android:hint="Stream label (e.g. Backup SD)"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:padding="12dp"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textColorHint="@color/colorStatusDefault"
+                    android:textSize="13sp" />
+
+                <EditText
+                    android:id="@+id/etSecondaryUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/edit_text_background"
+                    android:gravity="top|start"
+                    android:hint="Paste .m3u8 URL"
+                    android:inputType="textMultiLine|textUri"
+                    android:minLines="3"
+                    android:maxLines="5"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textColorHint="@color/colorStatusDefault"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/btnPasteSecondary"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/btn_outlined_dark"
+                    android:text="📋  Paste from Clipboard"
+                    android:textAllCaps="false"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/btnUpdateSecondary"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/btn_outlined_dark"
+                    android:text="🔄  Update Secondary URL"
+                    android:textAllCaps="false"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- ===== CARD 4: Stream Status ===== -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/card_background"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📊  Stream Status"
+                    android:textColor="@color/colorTextPrimary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <!-- Active status row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -186,20 +318,45 @@
                     android:orientation="horizontal">
 
                     <View
-                        android:id="@+id/statusIndicator"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
+                        android:id="@+id/statusIndicatorActive"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:background="@drawable/status_circle" />
 
                     <TextView
-                        android:id="@+id/tvStatusText"
+                        android:id="@+id/tvStatusActive"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:text="@string/status_default"
+                        android:text="Active: Unknown"
                         android:textColor="@color/colorTextSecondary"
-                        android:textSize="14sp" />
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <!-- Secondary status row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/statusIndicatorSecondary"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:background="@drawable/status_circle" />
+
+                    <TextView
+                        android:id="@+id/tvStatusSecondary"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="Secondary: Unknown"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="13sp" />
                 </LinearLayout>
 
                 <ProgressBar
@@ -211,19 +368,39 @@
                     android:indeterminateTint="@color/colorAccent"
                     android:visibility="gone" />
 
-                <Button
-                    android:id="@+id/btnCheckStatus"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:background="@drawable/btn_outlined_dark"
-                    android:text="🔍  Check Stream"
-                    android:textAllCaps="false"
-                    android:textColor="@color/colorTextPrimary"
-                    android:textSize="14sp" />
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnCheckActive"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/btn_outlined_dark"
+                        android:text="Check Active"
+                        android:textAllCaps="false"
+                        android:textColor="@color/colorTextPrimary"
+                        android:textSize="13sp" />
+
+                    <Button
+                        android:id="@+id/btnCheckSecondary"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/btn_outlined_dark"
+                        android:text="Check Secondary"
+                        android:textAllCaps="false"
+                        android:textColor="@color/colorTextPrimary"
+                        android:textSize="13sp" />
+                </LinearLayout>
             </LinearLayout>
 
-            <!-- ===== CARD 4: App Info ===== -->
+            <!-- ===== CARD 5: YouTube Cache ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -235,84 +412,40 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/section_info"
+                    android:text="📺  YouTube Cache"
                     android:textColor="@color/colorTextPrimary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <!-- Backend URL row -->
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tvYoutubeCacheInfo"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Tap refresh to check YouTube cache"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="13sp" />
+
+                <ProgressBar
+                    android:id="@+id/progressYoutube"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:indeterminateTint="@color/colorAccent"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btnRefreshYoutube"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
                     android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_backend_url"
-                        android:textColor="@color/colorTextSecondary"
-                        android:textSize="13sp" />
-
-                    <TextView
-                        android:id="@+id/tvBackendUrl"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textColor="@color/colorTextPrimary"
-                        android:textSize="13sp" />
-                </LinearLayout>
-
-                <!-- App Version row -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_app_version"
-                        android:textColor="@color/colorTextSecondary"
-                        android:textSize="13sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:text="1.0.0"
-                        android:textColor="@color/colorTextPrimary"
-                        android:textSize="13sp" />
-                </LinearLayout>
-
-                <!-- Last URL Update row -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_last_url_update"
-                        android:textColor="@color/colorTextSecondary"
-                        android:textSize="13sp" />
-
-                    <TextView
-                        android:id="@+id/tvLastUrlUpdate"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:text="Never"
-                        android:textColor="@color/colorTextPrimary"
-                        android:textSize="13sp" />
-                </LinearLayout>
+                    android:background="@drawable/btn_red_rounded"
+                    android:text="🔄  Force Refresh YouTube"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
         </LinearLayout>

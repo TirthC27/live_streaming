@@ -19,7 +19,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.streamadmin.app.network.RetrofitClient
-import com.streamadmin.app.network.models.UpdateUrlRequest
+import com.streamadmin.app.network.models.UpdateActiveUrlRequest
 import com.streamadmin.app.utils.Constants
 import com.streamadmin.app.utils.PrefsManager
 import kotlinx.coroutines.launch
@@ -29,30 +29,47 @@ import java.util.Locale
 
 class DashboardActivity : AppCompatActivity() {
 
-    // Section 1 — Current Stream
-    private lateinit var tvCurrentUrl: TextView
-    private lateinit var tvLastUpdated: TextView
-    private lateinit var tvSource: TextView
-    private lateinit var btnRefresh: View
-    private lateinit var progressCurrentUrl: ProgressBar
-
-    // Section 2 — Update URL
-    private lateinit var etNewUrl: EditText
-    private lateinit var btnPasteClipboard: Button
-    private lateinit var btnUpdateStream: Button
-
-    // Section 3 — Stream Status
-    private lateinit var statusIndicator: View
-    private lateinit var tvStatusText: TextView
-    private lateinit var btnCheckStatus: Button
-    private lateinit var progressStatus: ProgressBar
-
-    // Section 4 — Info
-    private lateinit var tvBackendUrl: TextView
-    private lateinit var tvInfoLastUpdated: TextView
-
     // Toolbar
     private lateinit var toolbar: MaterialToolbar
+
+    // Section 1 — Current Config
+    private lateinit var tvActiveUrl: TextView
+    private lateinit var tvActiveLabel: TextView
+    private lateinit var tvActiveUpdatedAt: TextView
+    private lateinit var tvSecondaryUrl: TextView
+    private lateinit var tvSecondaryLabel: TextView
+    private lateinit var btnRefreshConfig: View
+    private lateinit var progressConfig: ProgressBar
+
+    // Section 2 — Update Active URL
+    private lateinit var etActiveLabel: EditText
+    private lateinit var etActiveUrl: EditText
+    private lateinit var btnPasteActive: Button
+    private lateinit var btnUpdateActive: Button
+
+    // Section 3 — Update Secondary URL
+    private lateinit var etSecondaryLabel: EditText
+    private lateinit var etSecondaryUrl: EditText
+    private lateinit var btnPasteSecondary: Button
+    private lateinit var btnUpdateSecondary: Button
+
+    // Section 4 — Stream Status
+    private lateinit var statusIndicatorActive: View
+    private lateinit var tvStatusActive: TextView
+    private lateinit var statusIndicatorSecondary: View
+    private lateinit var tvStatusSecondary: TextView
+    private lateinit var btnCheckActive: Button
+    private lateinit var btnCheckSecondary: Button
+    private lateinit var progressStatus: ProgressBar
+
+    // Section 5 — YouTube Cache
+    private lateinit var tvYoutubeCacheInfo: TextView
+    private lateinit var progressYoutube: ProgressBar
+    private lateinit var btnRefreshYoutube: Button
+
+    // Cached config URLs for status checks
+    private var cachedActiveUrl: String? = null
+    private var cachedSecondaryUrl: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,36 +86,49 @@ class DashboardActivity : AppCompatActivity() {
         setupSection2()
         setupSection3()
         setupSection4()
+        setupSection5()
 
-        // Load current URL on start
-        loadCurrentUrl()
+        // Load config on start
+        loadStreamConfig()
     }
 
     private fun initViews() {
-        // Toolbar
         toolbar = findViewById(R.id.toolbar)
 
         // Section 1
-        tvCurrentUrl = findViewById(R.id.tvCurrentUrl)
-        tvLastUpdated = findViewById(R.id.tvLastUpdated)
-        tvSource = findViewById(R.id.tvSource)
-        btnRefresh = findViewById(R.id.btnRefresh)
-        progressCurrentUrl = findViewById(R.id.progressCurrentUrl)
+        tvActiveUrl = findViewById(R.id.tvActiveUrl)
+        tvActiveLabel = findViewById(R.id.tvActiveLabel)
+        tvActiveUpdatedAt = findViewById(R.id.tvActiveUpdatedAt)
+        tvSecondaryUrl = findViewById(R.id.tvSecondaryUrl)
+        tvSecondaryLabel = findViewById(R.id.tvSecondaryLabel)
+        btnRefreshConfig = findViewById(R.id.btnRefreshConfig)
+        progressConfig = findViewById(R.id.progressConfig)
 
         // Section 2
-        etNewUrl = findViewById(R.id.etNewUrl)
-        btnPasteClipboard = findViewById(R.id.btnPaste)
-        btnUpdateStream = findViewById(R.id.btnUpdate)
+        etActiveLabel = findViewById(R.id.etActiveLabel)
+        etActiveUrl = findViewById(R.id.etActiveUrl)
+        btnPasteActive = findViewById(R.id.btnPasteActive)
+        btnUpdateActive = findViewById(R.id.btnUpdateActive)
 
         // Section 3
-        statusIndicator = findViewById(R.id.statusIndicator)
-        tvStatusText = findViewById(R.id.tvStatusText)
-        btnCheckStatus = findViewById(R.id.btnCheckStatus)
-        progressStatus = findViewById(R.id.progressStatus)
+        etSecondaryLabel = findViewById(R.id.etSecondaryLabel)
+        etSecondaryUrl = findViewById(R.id.etSecondaryUrl)
+        btnPasteSecondary = findViewById(R.id.btnPasteSecondary)
+        btnUpdateSecondary = findViewById(R.id.btnUpdateSecondary)
 
         // Section 4
-        tvBackendUrl = findViewById(R.id.tvBackendUrl)
-        tvInfoLastUpdated = findViewById(R.id.tvLastUrlUpdate)
+        statusIndicatorActive = findViewById(R.id.statusIndicatorActive)
+        tvStatusActive = findViewById(R.id.tvStatusActive)
+        statusIndicatorSecondary = findViewById(R.id.statusIndicatorSecondary)
+        tvStatusSecondary = findViewById(R.id.tvStatusSecondary)
+        btnCheckActive = findViewById(R.id.btnCheckActive)
+        btnCheckSecondary = findViewById(R.id.btnCheckSecondary)
+        progressStatus = findViewById(R.id.progressStatus)
+
+        // Section 5
+        tvYoutubeCacheInfo = findViewById(R.id.tvYoutubeCacheInfo)
+        progressYoutube = findViewById(R.id.progressYoutube)
+        btnRefreshYoutube = findViewById(R.id.btnRefreshYoutube)
     }
 
     private fun setupToolbar() {
@@ -133,200 +163,210 @@ class DashboardActivity : AppCompatActivity() {
         finish()
     }
 
-    // ========== SECTION 1: CURRENT STREAM ==========
+    // ========== SECTION 1: CURRENT CONFIG ==========
 
     private fun setupSection1() {
-        btnRefresh.setOnClickListener {
-            loadCurrentUrl()
+        btnRefreshConfig.setOnClickListener {
+            loadStreamConfig()
         }
     }
 
-    private fun loadCurrentUrl() {
-        progressCurrentUrl.visibility = View.VISIBLE
-        tvCurrentUrl.text = "Loading..."
-        tvCurrentUrl.setTextColor(Color.parseColor("#aaaaaa"))
+    private fun loadStreamConfig() {
+        progressConfig.visibility = View.VISIBLE
+        tvActiveUrl.text = "Loading..."
+        tvActiveUrl.setTextColor(Color.parseColor("#aaaaaa"))
 
         lifecycleScope.launch {
             try {
-                val response = RetrofitClient.apiService.getStreamUrl(Constants.ADMIN_SECRET)
-                progressCurrentUrl.visibility = View.GONE
+                val response = RetrofitClient.apiService.getStreamConfig(Constants.ADMIN_SECRET)
+                progressConfig.visibility = View.GONE
 
                 if (response.isSuccessful && response.body() != null) {
-                    val data = response.body()!!
-                    tvCurrentUrl.text = data.url
-                    tvCurrentUrl.setTextColor(Color.WHITE)
-                    tvLastUpdated.text = "Updated: ${data.updatedAt}"
-                    tvSource.text = "Source: ${data.source}"
+                    val config = response.body()!!
+
+                    // Active URL
+                    tvActiveUrl.text = config.activeUrl
+                    tvActiveUrl.setTextColor(Color.WHITE)
+                    tvActiveLabel.text = "Label: ${config.activeUrlLabel}"
+                    tvActiveUpdatedAt.text = "Updated: ${formatTimestamp(config.activeUrlUpdatedAt)}"
+
+                    // Secondary URL
+                    tvSecondaryUrl.text = config.secondaryUrl ?: "Not set"
+                    tvSecondaryUrl.setTextColor(
+                        if (config.secondaryUrl != null) Color.WHITE
+                        else Color.parseColor("#666666")
+                    )
+                    tvSecondaryLabel.text = "Label: ${config.secondaryUrlLabel ?: "—"}"
+
+                    // Cache for status checks
+                    cachedActiveUrl = config.activeUrl
+                    cachedSecondaryUrl = config.secondaryUrl
 
                     // Save to prefs
-                    PrefsManager.setLastUrl(data.url)
-                    PrefsManager.setLastUpdated(data.updatedAt)
-
-                    // Update info section
-                    tvInfoLastUpdated.text = "Last Updated: ${data.updatedAt}"
+                    PrefsManager.setLastUrl(config.activeUrl)
+                    PrefsManager.setLastUpdated(config.activeUrlUpdatedAt ?: "")
                 } else {
-                    tvCurrentUrl.text = "Failed to load"
-                    tvCurrentUrl.setTextColor(Color.parseColor("#e50914"))
-                    tvLastUpdated.text = "Updated: N/A"
-                    tvSource.text = "Source: N/A"
+                    tvActiveUrl.text = "Failed to load"
+                    tvActiveUrl.setTextColor(Color.parseColor("#e50914"))
+                    tvActiveLabel.text = "Label: —"
+                    tvActiveUpdatedAt.text = "Updated: —"
                 }
             } catch (e: Exception) {
-                progressCurrentUrl.visibility = View.GONE
-                tvCurrentUrl.text = "Failed to load"
-                tvCurrentUrl.setTextColor(Color.parseColor("#e50914"))
-                tvLastUpdated.text = "Updated: N/A"
-                tvSource.text = "Error: ${e.localizedMessage}"
+                progressConfig.visibility = View.GONE
+                tvActiveUrl.text = "Failed to load"
+                tvActiveUrl.setTextColor(Color.parseColor("#e50914"))
+                tvActiveLabel.text = "Error: ${e.localizedMessage}"
+                tvActiveUpdatedAt.text = "Updated: —"
             }
         }
     }
 
-    // ========== SECTION 2: UPDATE URL ==========
+    // ========== SECTION 2: UPDATE ACTIVE URL ==========
 
     private fun setupSection2() {
-        btnPasteClipboard.setOnClickListener {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = clipboard.primaryClip
-            if (clip != null && clip.itemCount > 0) {
-                val pastedText = clip.getItemAt(0).text?.toString() ?: ""
-                etNewUrl.setText(pastedText)
-                etNewUrl.setSelection(pastedText.length)
-                Snackbar.make(
-                    findViewById(android.R.id.content),
-                    "Pasted from clipboard",
-                    Snackbar.LENGTH_SHORT
-                ).show()
-            } else {
-                Snackbar.make(
-                    findViewById(android.R.id.content),
-                    "Clipboard is empty",
-                    Snackbar.LENGTH_SHORT
-                ).show()
-            }
+        btnPasteActive.setOnClickListener {
+            pasteFromClipboard(etActiveUrl)
         }
 
-        btnUpdateStream.setOnClickListener {
-            val url = etNewUrl.text.toString().trim()
+        btnUpdateActive.setOnClickListener {
+            val url = etActiveUrl.text.toString().trim()
+            val label = etActiveLabel.text.toString().trim().ifEmpty { "Main Stream" }
 
-            // Validate not empty
             if (url.isEmpty()) {
-                Snackbar.make(
-                    findViewById(android.R.id.content),
-                    "Please enter a stream URL",
-                    Snackbar.LENGTH_SHORT
-                ).setBackgroundTint(Color.parseColor("#e50914"))
-                    .setTextColor(Color.WHITE)
-                    .show()
+                showSnackbar("Please enter a stream URL", isError = true)
                 return@setOnClickListener
             }
-
-            // Validate contains .m3u8
             if (!url.contains(".m3u8")) {
-                Snackbar.make(
-                    findViewById(android.R.id.content),
-                    "URL must contain .m3u8",
-                    Snackbar.LENGTH_SHORT
-                ).setBackgroundTint(Color.parseColor("#e50914"))
-                    .setTextColor(Color.WHITE)
-                    .show()
+                showSnackbar("URL must contain .m3u8", isError = true)
                 return@setOnClickListener
             }
 
-            updateStreamUrl(url)
+            updateActiveUrl(url, label)
         }
     }
 
-    private fun updateStreamUrl(url: String) {
-        // Show progress dialog
+    private fun updateActiveUrl(url: String, label: String) {
         val progressDialog = MaterialAlertDialogBuilder(this)
-            .setTitle("Updating Stream")
-            .setMessage("Updating stream URL...")
+            .setTitle("Updating Active Stream")
+            .setMessage("Updating active stream URL...")
             .setCancelable(false)
-            .setView(ProgressBar(this).apply {
-                setPadding(0, 48, 0, 48)
-            })
+            .setView(ProgressBar(this).apply { setPadding(0, 48, 0, 48) })
             .create()
         progressDialog.show()
 
         lifecycleScope.launch {
             try {
-                val request = UpdateUrlRequest(
+                val request = UpdateActiveUrlRequest(
                     secret = Constants.ADMIN_SECRET,
-                    url = url
+                    url = url,
+                    label = label
                 )
-                val response = RetrofitClient.apiService.updateUrl(request)
+                val response = RetrofitClient.apiService.updateActiveUrl(request)
                 progressDialog.dismiss()
 
-                if (response.isSuccessful && response.body() != null) {
-                    val data = response.body()!!
-                    if (data.success) {
-                        Snackbar.make(
-                            findViewById(android.R.id.content),
-                            "✅ Stream updated successfully!",
-                            Snackbar.LENGTH_LONG
-                        ).setBackgroundTint(Color.parseColor("#1b5e20"))
-                            .setTextColor(Color.WHITE)
-                            .show()
-
-                        // Clear input
-                        etNewUrl.setText("")
-
-                        // Save timestamp
-                        val timestamp = SimpleDateFormat(
-                            "yyyy-MM-dd HH:mm:ss",
-                            Locale.getDefault()
-                        ).format(Date())
-                        PrefsManager.setLastUrl(url)
-                        PrefsManager.setLastUpdated(timestamp)
-
-                        // Reload current URL
-                        loadCurrentUrl()
-                    } else {
-                        Snackbar.make(
-                            findViewById(android.R.id.content),
-                            "❌ Update failed: ${data.message}",
-                            Snackbar.LENGTH_LONG
-                        ).setBackgroundTint(Color.parseColor("#e50914"))
-                            .setTextColor(Color.WHITE)
-                            .show()
-                    }
+                if (response.isSuccessful && response.body()?.success == true) {
+                    showSnackbar("✅ Active URL updated!", isError = false)
+                    etActiveUrl.setText("")
+                    etActiveLabel.setText("")
+                    loadStreamConfig()
                 } else {
-                    Snackbar.make(
-                        findViewById(android.R.id.content),
-                        "❌ Update failed: Server error ${response.code()}",
-                        Snackbar.LENGTH_LONG
-                    ).setBackgroundTint(Color.parseColor("#e50914"))
-                        .setTextColor(Color.WHITE)
-                        .show()
+                    showSnackbar("❌ Update failed: Server error ${response.code()}", isError = true)
                 }
             } catch (e: Exception) {
                 progressDialog.dismiss()
-                Snackbar.make(
-                    findViewById(android.R.id.content),
-                    "❌ Update failed: ${e.localizedMessage}",
-                    Snackbar.LENGTH_LONG
-                ).setBackgroundTint(Color.parseColor("#e50914"))
-                    .setTextColor(Color.WHITE)
-                    .show()
+                showSnackbar("❌ Update failed: ${e.localizedMessage}", isError = true)
             }
         }
     }
 
-    // ========== SECTION 3: STREAM STATUS ==========
+    // ========== SECTION 3: UPDATE SECONDARY URL ==========
 
     private fun setupSection3() {
-        // Default grey indicator
-        setStatusIndicatorColor("#666666")
-        tvStatusText.text = "Status: Unknown"
+        btnPasteSecondary.setOnClickListener {
+            pasteFromClipboard(etSecondaryUrl)
+        }
 
-        btnCheckStatus.setOnClickListener {
-            checkStreamStatus()
+        btnUpdateSecondary.setOnClickListener {
+            val url = etSecondaryUrl.text.toString().trim()
+            val label = etSecondaryLabel.text.toString().trim().ifEmpty { "Backup Stream" }
+
+            if (url.isEmpty()) {
+                showSnackbar("Please enter a stream URL", isError = true)
+                return@setOnClickListener
+            }
+            if (!url.contains(".m3u8")) {
+                showSnackbar("URL must contain .m3u8", isError = true)
+                return@setOnClickListener
+            }
+
+            updateSecondaryUrl(url, label)
         }
     }
 
-    private fun checkStreamStatus() {
+    private fun updateSecondaryUrl(url: String, label: String) {
+        val progressDialog = MaterialAlertDialogBuilder(this)
+            .setTitle("Updating Backup Stream")
+            .setMessage("Updating secondary stream URL...")
+            .setCancelable(false)
+            .setView(ProgressBar(this).apply { setPadding(0, 48, 0, 48) })
+            .create()
+        progressDialog.show()
+
+        lifecycleScope.launch {
+            try {
+                val request = UpdateActiveUrlRequest(
+                    secret = Constants.ADMIN_SECRET,
+                    url = url,
+                    label = label
+                )
+                val response = RetrofitClient.apiService.updateSecondaryUrl(request)
+                progressDialog.dismiss()
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    showSnackbar("✅ Secondary URL updated!", isError = false)
+                    etSecondaryUrl.setText("")
+                    etSecondaryLabel.setText("")
+                    loadStreamConfig()
+                } else {
+                    showSnackbar("❌ Update failed: Server error ${response.code()}", isError = true)
+                }
+            } catch (e: Exception) {
+                progressDialog.dismiss()
+                showSnackbar("❌ Update failed: ${e.localizedMessage}", isError = true)
+            }
+        }
+    }
+
+    // ========== SECTION 4: STREAM STATUS ==========
+
+    private fun setupSection4() {
+        setStatusIndicatorColor(statusIndicatorActive, "#666666")
+        setStatusIndicatorColor(statusIndicatorSecondary, "#666666")
+
+        btnCheckActive.setOnClickListener {
+            checkStreamStatus(cachedActiveUrl, tvStatusActive, statusIndicatorActive, "Active")
+        }
+
+        btnCheckSecondary.setOnClickListener {
+            if (cachedSecondaryUrl.isNullOrEmpty()) {
+                tvStatusSecondary.text = "Secondary: Not configured"
+                tvStatusSecondary.setTextColor(Color.parseColor("#666666"))
+                return@setOnClickListener
+            }
+            checkStreamStatus(cachedSecondaryUrl, tvStatusSecondary, statusIndicatorSecondary, "Secondary")
+        }
+    }
+
+    private fun checkStreamStatus(url: String?, statusText: TextView, indicator: View, label: String) {
+        if (url.isNullOrEmpty()) {
+            statusText.text = "$label: No URL configured"
+            setStatusIndicatorColor(indicator, "#666666")
+            return
+        }
+
         progressStatus.visibility = View.VISIBLE
-        tvStatusText.text = "Checking..."
-        setStatusIndicatorColor("#666666")
+        statusText.text = "$label: Checking..."
+        setStatusIndicatorColor(indicator, "#666666")
 
         lifecycleScope.launch {
             try {
@@ -338,42 +378,130 @@ class DashboardActivity : AppCompatActivity() {
                     when {
                         data.status.equals("live", ignoreCase = true) ||
                         data.status.equals("online", ignoreCase = true) -> {
-                            setStatusIndicatorColor("#00c853")
-                            tvStatusText.text = "✅ Stream is Live"
-                            tvStatusText.setTextColor(Color.parseColor("#00c853"))
+                            setStatusIndicatorColor(indicator, "#00c853")
+                            statusText.text = "$label: ✅ Live"
+                            statusText.setTextColor(Color.parseColor("#00c853"))
                         }
                         else -> {
-                            setStatusIndicatorColor("#e50914")
-                            tvStatusText.text = "❌ Stream is Offline"
-                            tvStatusText.setTextColor(Color.parseColor("#e50914"))
+                            setStatusIndicatorColor(indicator, "#e50914")
+                            statusText.text = "$label: ❌ Offline"
+                            statusText.setTextColor(Color.parseColor("#e50914"))
                         }
                     }
                 } else {
-                    setStatusIndicatorColor("#e50914")
-                    tvStatusText.text = "❌ Stream is Offline"
-                    tvStatusText.setTextColor(Color.parseColor("#e50914"))
+                    setStatusIndicatorColor(indicator, "#e50914")
+                    statusText.text = "$label: ❌ Offline"
+                    statusText.setTextColor(Color.parseColor("#e50914"))
                 }
             } catch (e: Exception) {
                 progressStatus.visibility = View.GONE
-                setStatusIndicatorColor("#666666")
-                tvStatusText.text = "⚠️ Could not reach server"
-                tvStatusText.setTextColor(Color.parseColor("#ff9800"))
+                setStatusIndicatorColor(indicator, "#666666")
+                statusText.text = "$label: ⚠️ Could not reach server"
+                statusText.setTextColor(Color.parseColor("#ff9800"))
             }
         }
     }
 
-    private fun setStatusIndicatorColor(colorHex: String) {
+    private fun setStatusIndicatorColor(view: View, colorHex: String) {
         val drawable = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(Color.parseColor(colorHex))
         }
-        statusIndicator.background = drawable
+        view.background = drawable
     }
 
-    // ========== SECTION 4: INFO ==========
+    // ========== SECTION 5: YOUTUBE CACHE ==========
 
-    private fun setupSection4() {
-        tvBackendUrl.text = Constants.BACKEND_URL
-        tvInfoLastUpdated.text = PrefsManager.getLastUpdated()
+    private fun setupSection5() {
+        btnRefreshYoutube.setOnClickListener {
+            forceRefreshYoutube()
+        }
+    }
+
+    private fun forceRefreshYoutube() {
+        progressYoutube.visibility = View.VISIBLE
+        tvYoutubeCacheInfo.text = "Refreshing YouTube cache..."
+        btnRefreshYoutube.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.apiService.refreshYoutube(Constants.ADMIN_SECRET)
+                progressYoutube.visibility = View.GONE
+                btnRefreshYoutube.isEnabled = true
+
+                if (response.isSuccessful && response.body() != null) {
+                    val data = response.body()!!
+                    val liveCount = data.links.count { it.isLive }
+                    val totalCount = data.links.size
+                    val fetchTime = formatTimestamp(data.fetchedAt)
+
+                    tvYoutubeCacheInfo.text = "✅ Refreshed: $liveCount/$totalCount channels live\nFetched at: $fetchTime"
+                    tvYoutubeCacheInfo.setTextColor(Color.parseColor("#00c853"))
+
+                    showSnackbar("✅ YouTube cache refreshed! $liveCount channels live", isError = false)
+                } else {
+                    tvYoutubeCacheInfo.text = "❌ Refresh failed: ${response.code()}"
+                    tvYoutubeCacheInfo.setTextColor(Color.parseColor("#e50914"))
+                }
+            } catch (e: Exception) {
+                progressYoutube.visibility = View.GONE
+                btnRefreshYoutube.isEnabled = true
+                tvYoutubeCacheInfo.text = "❌ Refresh failed: ${e.localizedMessage}"
+                tvYoutubeCacheInfo.setTextColor(Color.parseColor("#e50914"))
+            }
+        }
+    }
+
+    // ========== UTILITIES ==========
+
+    private fun pasteFromClipboard(editText: EditText) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = clipboard.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val pastedText = clip.getItemAt(0).text?.toString() ?: ""
+            editText.setText(pastedText)
+            editText.setSelection(pastedText.length)
+            showSnackbar("Pasted from clipboard", isError = false)
+        } else {
+            showSnackbar("Clipboard is empty", isError = true)
+        }
+    }
+
+    private fun showSnackbar(message: String, isError: Boolean) {
+        val snackbar = Snackbar.make(
+            findViewById(android.R.id.content),
+            message,
+            Snackbar.LENGTH_LONG
+        )
+        if (isError) {
+            snackbar.setBackgroundTint(Color.parseColor("#e50914"))
+        } else {
+            snackbar.setBackgroundTint(Color.parseColor("#1b5e20"))
+        }
+        snackbar.setTextColor(Color.WHITE)
+        snackbar.show()
+    }
+
+    private fun formatTimestamp(timestamp: String?): String {
+        if (timestamp.isNullOrEmpty()) return "—"
+        return try {
+            val inputFormats = listOf(
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()),
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()),
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()),
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            )
+            val outputFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+
+            for (fmt in inputFormats) {
+                try {
+                    val date = fmt.parse(timestamp)
+                    if (date != null) return outputFormat.format(date)
+                } catch (_: Exception) { }
+            }
+            timestamp
+        } catch (e: Exception) {
+            timestamp
+        }
     }
 }

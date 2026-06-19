@@ -2,8 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+
+const streamService = require('./streamService');
+const youtubeService = require('./youtubeService');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -11,54 +12,6 @@ const PORT = process.env.PORT || 4000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// ===== URL Persistence =====
-const URL_FILE = path.join(__dirname, 'stream-url.json');
-let currentStreamUrl = '';
-let urlSource = 'env';
-let lastUpdatedAt = new Date().toISOString();
-
-// Load URL on startup
-function loadStreamUrl() {
-  try {
-    if (fs.existsSync(URL_FILE)) {
-      const data = JSON.parse(fs.readFileSync(URL_FILE, 'utf8'));
-      if (data.url) {
-        currentStreamUrl = data.url;
-        lastUpdatedAt = data.updatedAt || new Date().toISOString();
-        urlSource = 'file';
-        console.log('✅ Loaded stream URL from saved file');
-        console.log(`   URL: ${currentStreamUrl.substring(0, 60)}...`);
-        return;
-      }
-    }
-  } catch (err) {
-    console.error('⚠️ Error reading stream-url.json:', err.message);
-  }
-
-  // Fallback to env variable
-  currentStreamUrl = process.env.STREAM_SOURCE_URL || '';
-  urlSource = 'env';
-  console.log('📦 Loaded stream URL from .env');
-  if (currentStreamUrl) {
-    console.log(`   URL: ${currentStreamUrl.substring(0, 60)}...`);
-  } else {
-    console.warn('⚠️ No STREAM_SOURCE_URL configured!');
-  }
-}
-
-function saveStreamUrl(url) {
-  const data = {
-    url: url,
-    updatedAt: new Date().toISOString()
-  };
-  fs.writeFileSync(URL_FILE, JSON.stringify(data, null, 2), 'utf8');
-  lastUpdatedAt = data.updatedAt;
-  urlSource = 'file';
-}
-
-// Load URL on startup
-loadStreamUrl();
 
 // ===== Auth Middleware =====
 function requireAdmin(req, res, next) {
@@ -79,7 +32,8 @@ app.get('/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    hasStreamUrl: !!currentStreamUrl
+    database: 'supabase',
+    streamConfig: 'loaded',
   });
 });
 
@@ -88,8 +42,12 @@ app.get('/health', (req, res) => {
 // GET /stream/index.m3u8
 app.get('/stream/index.m3u8', async (req, res) => {
   try {
+    // Read stream URL from Supabase
+    const config = await streamService.getStreamConfig();
+    const currentStreamUrl = config.activeUrl;
+
     if (!currentStreamUrl) {
-      return res.status(500).json({ error: 'STREAM_SOURCE_URL not configured' });
+      return res.status(500).json({ error: 'Stream URL not configured in database' });
     }
 
     const response = await axios.get(currentStreamUrl, {
@@ -172,21 +130,23 @@ app.get('/stream/segment', async (req, res) => {
   }
 });
 
-// ===== Admin Routes =====
+// ===== Admin Routes — Stream Config =====
 
-// GET /admin/stream-url — Get current stream URL
-app.get('/admin/stream-url', requireAdmin, (req, res) => {
-  res.json({
-    url: currentStreamUrl,
-    updatedAt: lastUpdatedAt,
-    source: urlSource
-  });
+// GET /admin/stream-config — Get full stream config from Supabase
+app.get('/admin/stream-config', requireAdmin, async (req, res) => {
+  try {
+    const config = await streamService.getStreamConfig();
+    res.json(config);
+  } catch (error) {
+    console.error('Error getting stream config:', error.message);
+    res.status(500).json({ error: 'Failed to fetch stream config' });
+  }
 });
 
-// POST /admin/update-url — Update stream URL
-app.post('/admin/update-url', (req, res) => {
+// POST /admin/update-active-url — Update active stream URL
+app.post('/admin/update-active-url', async (req, res) => {
   try {
-    const { secret, url } = req.body;
+    const { secret, url, label } = req.body;
 
     // Validate secret
     if (!secret || secret !== process.env.ADMIN_SECRET) {
@@ -202,33 +162,94 @@ app.post('/admin/update-url', (req, res) => {
       return res.status(400).json({ error: 'URL must be a valid .m3u8 stream URL', success: false });
     }
 
-    // Update in memory
-    currentStreamUrl = url.trim();
-
-    // Persist to file
-    saveStreamUrl(currentStreamUrl);
-
-    console.log(`✅ Stream URL updated via admin API`);
-    console.log(`   New URL: ${currentStreamUrl.substring(0, 60)}...`);
-
-    res.json({
-      success: true,
-      message: 'URL updated successfully'
-    });
+    const updatedConfig = await streamService.updateActiveUrl(url.trim(), label || 'Main Stream');
+    res.json({ success: true, updatedConfig });
   } catch (error) {
-    console.error('Error updating URL:', error.message);
-    res.status(500).json({ error: 'Failed to update URL', success: false });
+    console.error('Error updating active URL:', error.message);
+    res.status(500).json({ error: 'Failed to update active URL', success: false });
   }
 });
 
-// GET /admin/check-status — Check if stream is live
+// POST /admin/update-secondary-url — Update secondary stream URL
+app.post('/admin/update-secondary-url', async (req, res) => {
+  try {
+    const { secret, url, label } = req.body;
+
+    // Validate secret
+    if (!secret || secret !== process.env.ADMIN_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized', success: false });
+    }
+
+    // Validate URL
+    if (!url || url.trim() === '') {
+      return res.status(400).json({ error: 'URL is required', success: false });
+    }
+
+    if (!url.includes('.m3u8')) {
+      return res.status(400).json({ error: 'URL must be a valid .m3u8 stream URL', success: false });
+    }
+
+    const updatedConfig = await streamService.updateSecondaryUrl(url.trim(), label || 'Backup Stream');
+    res.json({ success: true, updatedConfig });
+  } catch (error) {
+    console.error('Error updating secondary URL:', error.message);
+    res.status(500).json({ error: 'Failed to update secondary URL', success: false });
+  }
+});
+
+// POST /admin/update-both-urls — Update both stream URLs
+app.post('/admin/update-both-urls', async (req, res) => {
+  try {
+    const { secret, activeUrl, secondaryUrl, activeLabel, secondaryLabel } = req.body;
+
+    // Validate secret
+    if (!secret || secret !== process.env.ADMIN_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized', success: false });
+    }
+
+    // Validate active URL
+    if (!activeUrl || !activeUrl.includes('.m3u8')) {
+      return res.status(400).json({ error: 'Active URL must be a valid .m3u8 stream URL', success: false });
+    }
+
+    // Validate secondary URL
+    if (!secondaryUrl || !secondaryUrl.includes('.m3u8')) {
+      return res.status(400).json({ error: 'Secondary URL must be a valid .m3u8 stream URL', success: false });
+    }
+
+    const updatedConfig = await streamService.updateBothUrls(
+      activeUrl.trim(),
+      secondaryUrl.trim(),
+      activeLabel || 'Main Stream',
+      secondaryLabel || 'Backup Stream'
+    );
+    res.json({ success: true, updatedConfig });
+  } catch (error) {
+    console.error('Error updating both URLs:', error.message);
+    res.status(500).json({ error: 'Failed to update both URLs', success: false });
+  }
+});
+
+// ===== Admin Routes — Stream Status =====
+
+// GET /admin/check-status — Check if a stream URL is live
 app.get('/admin/check-status', requireAdmin, async (req, res) => {
   try {
-    if (!currentStreamUrl) {
+    const urlToCheck = req.query.url;
+    let streamUrl;
+
+    if (urlToCheck) {
+      streamUrl = decodeURIComponent(urlToCheck);
+    } else {
+      const config = await streamService.getStreamConfig();
+      streamUrl = config.activeUrl;
+    }
+
+    if (!streamUrl) {
       return res.json({ status: 'offline', error: 'No stream URL configured' });
     }
 
-    const response = await axios.get(currentStreamUrl, {
+    const response = await axios.get(streamUrl, {
       headers: {
         'Referer': 'https://executeandship.com/',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -240,7 +261,7 @@ app.get('/admin/check-status', requireAdmin, async (req, res) => {
     if (response.status === 200) {
       res.json({
         status: 'live',
-        url: currentStreamUrl
+        url: streamUrl
       });
     } else {
       res.json({
@@ -256,10 +277,36 @@ app.get('/admin/check-status', requireAdmin, async (req, res) => {
   }
 });
 
+// ===== YouTube Routes =====
+
+// GET /matches/youtube-links — Public route, returns YouTube links with cache info
+app.get('/matches/youtube-links', async (req, res) => {
+  try {
+    const result = await youtubeService.getYoutubeLinks();
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching YouTube links:', error.message);
+    res.status(500).json({ error: 'Failed to fetch YouTube links', links: [], cached: false });
+  }
+});
+
+// POST /admin/refresh-youtube — Force refresh YouTube cache
+app.post('/admin/refresh-youtube', requireAdmin, async (req, res) => {
+  try {
+    const result = await youtubeService.forceRefreshYoutube();
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Error refreshing YouTube cache:', error.message);
+    res.status(500).json({ error: 'Failed to refresh YouTube cache', success: false });
+  }
+});
+
 // ===== Start Server =====
 app.listen(PORT, () => {
   console.log(`\n🚀 StreamX Proxy Server running on port ${PORT}`);
-  console.log(`   Health:  http://localhost:${PORT}/health`);
-  console.log(`   Stream:  http://localhost:${PORT}/stream/index.m3u8`);
-  console.log(`   Admin:   http://localhost:${PORT}/admin/stream-url\n`);
+  console.log(`   Health:    http://localhost:${PORT}/health`);
+  console.log(`   Stream:    http://localhost:${PORT}/stream/index.m3u8`);
+  console.log(`   Config:    http://localhost:${PORT}/admin/stream-config`);
+  console.log(`   YouTube:   http://localhost:${PORT}/matches/youtube-links`);
+  console.log(`   Database:  Supabase\n`);
 });

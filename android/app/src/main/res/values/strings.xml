@@ -24,4 +24,17 @@
     <string name="label_app_version">App Version:</string>
     <string name="label_last_url_update">Last URL Update:</string>
     <string name="logout">Logout</string>
+    <!-- New Supabase integration strings -->
+    <string name="section_current_config">Current Stream Config</string>
+    <string name="section_update_active">Update Active Stream</string>
+    <string name="section_update_secondary">Update Backup Stream</string>
+    <string name="section_youtube_cache">YouTube Cache</string>
+    <string name="hint_active_label">Stream label (e.g. Main HD)</string>
+    <string name="hint_secondary_label">Stream label (e.g. Backup SD)</string>
+    <string name="hint_paste_url">Paste .m3u8 URL</string>
+    <string name="btn_update_active">Update Active URL</string>
+    <string name="btn_update_secondary">Update Secondary URL</string>
+    <string name="btn_check_active">Check Active</string>
+    <string name="btn_check_secondary">Check Secondary</string>
+    <string name="btn_refresh_youtube">Force Refresh YouTube</string>
 </resources>
