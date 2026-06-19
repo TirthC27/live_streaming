@@ -2,6 +2,7 @@ import {
   MagnifyingGlass,
   Play,
 } from "@phosphor-icons/react";
+import { Link } from "react-router-dom";
 import { TOP_SEARCHES } from "../data/posts";
 
 export default function Hero() {
@@ -55,10 +56,10 @@ export default function Hero() {
             </div>
 
             {/* CTA */}
-            <button className="mt-8 flex items-center gap-3 rounded-xl bg-pink-200 px-7 py-3.5 font-semibold text-black transition-colors hover:bg-pink-300 active:scale-[0.98]">
+            <Link to="/matches" className="mt-8 flex items-center gap-3 rounded-xl bg-pink-200 px-7 py-3.5 font-semibold text-black transition-colors hover:bg-pink-300 active:scale-[0.98] w-fit">
               Watch Live
               <Play size={18} weight="fill" />
-            </button>
+            </Link>
           </div>
         </div>
       </div>
