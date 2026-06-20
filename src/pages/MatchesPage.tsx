@@ -86,15 +86,6 @@ function FeaturedMatch({ match }: { match: Game | null }) {
   );
 }
 
-// AdsPlaceholder Component
-function AdsPlaceholder() {
-  return (
-    <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-white/10 bg-[#1b1843]/50">
-      <span className="text-xs text-zinc-400">Advertisement</span>
-    </div>
-  );
-}
-
 // Target Competition IDs
 const TARGET_COMPETITIONS = new Set([
   5930, // World Cup
@@ -483,22 +474,41 @@ function TopHighlights({ highlights }: { highlights: Highlight[] }) {
 }
 
 function LiveNow({ matches: _matches, onSelect: _onSelect, onViewAll: _onViewAll }: { matches: Game[]; onSelect: (g: Game) => void; onViewAll: () => void }) {
-  const hardcodedStreams = [
+  const [config, setConfig] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const res = await fetch("https://streamx-server-286096169961.us-central1.run.app/admin/stream-config", {
+          headers: {
+            "x-admin-secret": "StreamXAdmin@2024#Secret"
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConfig(data);
+        }
+      } catch (err) {
+        console.error("Failed to load StreamX config", err);
+      }
+    }
+    loadConfig();
+  }, []);
+
+  const hardcodedStreams = config ? [
     {
-      id: "bein",
-      title: "BeIN Sports Xtra",
-      url: "https://amg01334-beinsportsllc-beinxtra-samsungau-eiyvc.amagi.tv/playlist/amg01334-beinsportsllc-beinxtra-samsungau/playlist.m3u8",
+      id: "active",
+      title: config.activeUrlLabel || "Main Stream",
       thumbnail: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=300&q=80",
       description: "Live Sports Broadcast"
     },
     {
-      id: "google",
-      title: "Google Linear HLS",
-      url: "https://dai.google.com/linear/hls/pb/event/GxrCGmwST0ixsrc_QgB6qw/stream/2a13ecad-d853-4070-bf97-6e0f116cbda4:TPE/master.m3u8",
+      id: "secondary",
+      title: config.secondaryUrlLabel || "Backup Stream",
       thumbnail: "https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&w=300&q=80",
       description: "Direct Event Stream"
     }
-  ];
+  ] : [];
 
   return (
     <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
@@ -511,29 +521,33 @@ function LiveNow({ matches: _matches, onSelect: _onSelect, onViewAll: _onViewAll
           Live Now
         </h3>
       </div>
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {hardcodedStreams.map((stream, idx) => (
-          <Link
-            key={idx}
-            to={`/watch/${stream.id}`}
-            className="min-w-[240px] flex-shrink-0 rounded-lg border border-white/5 bg-[#1b1843] overflow-hidden hover:bg-white/5 transition-colors group block"
-          >
-            <div className="relative h-28 overflow-hidden">
-              <img src={stream.thumbnail} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <Play size={24} weight="fill" className="text-white drop-shadow-md" />
+      {hardcodedStreams.length === 0 ? (
+        <p className="text-sm text-zinc-400">Loading live streams...</p>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {hardcodedStreams.map((stream, idx) => (
+            <Link
+              key={idx}
+              to={`/watch/${stream.id}`}
+              className="min-w-[240px] flex-shrink-0 rounded-lg border border-white/5 bg-[#1b1843] overflow-hidden hover:bg-white/5 transition-colors group block"
+            >
+              <div className="relative h-28 overflow-hidden">
+                <img src={stream.thumbnail} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <Play size={24} weight="fill" className="text-white drop-shadow-md" />
+                </div>
+                <span className="absolute top-2 left-2 rounded bg-red-500 px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider animate-pulse">
+                  Live Stream
+                </span>
               </div>
-              <span className="absolute top-2 left-2 rounded bg-red-500 px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider animate-pulse">
-                Live Stream
-              </span>
-            </div>
-            <div className="p-3">
-              <p className="text-xs font-semibold text-white truncate">{stream.title}</p>
-              <p className="text-[10px] text-zinc-400 mt-1 truncate">{stream.description}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
+              <div className="p-3">
+                <p className="text-xs font-semibold text-white truncate">{stream.title}</p>
+                <p className="text-[10px] text-zinc-400 mt-1 truncate">{stream.description}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -675,28 +689,6 @@ export default function MatchesPage() {
         const activeFeaturedMatch = featuredMatches[0] || finishedMatches[0] || null;
         let featuredYtThumbnail = "";
 
-        if (activeFeaturedMatch) {
-          const homeName = activeFeaturedMatch.homeCompetitor.name;
-          const awayName = activeFeaturedMatch.awayCompetitor.name;
-          const query = `${homeName} vs ${awayName} match highlights`;
-          const ytApiKey = "AIzaSyBEEoEANYvmqeGXaXXofNbQIAE4D1cGpFg";
-          try {
-            const ytRes = await fetch(
-              `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${encodeURIComponent(
-                query
-              )}&type=video&key=${ytApiKey}`
-            );
-            if (ytRes.ok) {
-              const ytData = await ytRes.json();
-              if (ytData.items && ytData.items.length > 0) {
-                featuredYtThumbnail = ytData.items[0].snippet.thumbnails?.high?.url || ytData.items[0].snippet.thumbnails?.medium?.url || "";
-              }
-            }
-          } catch (err) {
-            console.error("YouTube API failed for featured match:", err);
-          }
-        }
-
         const updatedFeatured = activeFeaturedMatch
           ? { ...activeFeaturedMatch, ytThumbnail: featuredYtThumbnail }
           : null;
@@ -706,53 +698,53 @@ export default function MatchesPage() {
         setFinished(finishedMatches);
         setFeatured(updatedFeatured);
 
-        // Generate highlights list based on the top 4 finished matches
-        const activeFinished = finishedMatches.slice(0, 4);
-        const dynamicHighlights: Highlight[] = await Promise.all(activeFinished.map(async (match, idx) => {
-          const homeName = match.homeCompetitor.name;
-          const awayName = match.awayCompetitor.name;
-          const title = `${homeName} vs ${awayName} Highlights`;
-          
-          // Selection of Unsplash sports images for realistic football mock thumbnails
-          const fallbackThumbs = [
-            "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=300&q=80",
-            "https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&w=300&q=80",
-            "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=300&q=80",
-            "https://images.unsplash.com/photo-1431324155629-1a6edd17ab6e?auto=format&fit=crop&w=300&q=80"
-          ];
-
-          let videoUrl = `https://www.youtube.com/watch?v=dQw4w9WgXcQ`;
-          let thumbnail = fallbackThumbs[idx % fallbackThumbs.length];
-          const ytApiKey = "AIzaSyBEEoEANYvmqeGXaXXofNbQIAE4D1cGpFg";
-          const query = `${homeName} vs ${awayName} match highlights`;
-
-          try {
-            const ytRes = await fetch(
-              `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q=${encodeURIComponent(
-                query
-              )}&type=video&key=${ytApiKey}`
-            );
-            if (ytRes.ok) {
-              const ytData = await ytRes.json();
-              if (ytData.items && ytData.items.length > 0) {
-                const item = ytData.items[0];
-                videoUrl = `https://www.youtube.com/watch?v=${item.id.videoId}`;
-                thumbnail = item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || thumbnail;
-              }
-            }
-          } catch (err) {
-            console.error("YouTube API failed:", err);
+        // Fetch YouTube highlights from the public matches/youtube-links endpoint
+        let resolvedHighlights: Highlight[] = [];
+        try {
+          const ytRes = await fetch("https://streamx-server-286096169961.us-central1.run.app/matches/youtube-links");
+          if (ytRes.ok) {
+            const ytData = await ytRes.json();
+            const serverLinks = ytData.links || [];
+            
+            // Map valid live/highlights or map standard query fallback if API matches lack active videoId
+            resolvedHighlights = serverLinks
+              .filter((l: any) => l.videoId)
+              .map((l: any) => ({
+                title: l.videoTitle || `${l.channelName} Live Stream`,
+                duration: "LIVE",
+                thumbnail: l.thumbnailUrl || "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=300&q=80",
+                url: l.videoUrl || `https://www.youtube.com/watch?v=${l.videoId}`
+              }));
           }
+        } catch (err) {
+          console.error("Failed to load server YouTube links:", err);
+        }
 
-          return {
-            title,
-            duration: "10:00",
-            thumbnail,
-            url: videoUrl
-          };
-        }));
+        // Use fallback if server yields empty active highlights
+        if (resolvedHighlights.length === 0) {
+          const activeFinished = finishedMatches.slice(0, 4);
+          resolvedHighlights = activeFinished.map((match: Game, idx: number) => {
+            const homeName = match.homeCompetitor.name;
+            const awayName = match.awayCompetitor.name;
+            const title = `${homeName} vs ${awayName} Highlights`;
+            const fallbackThumbs = [
+              "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=300&q=80",
+              "https://images.unsplash.com/photo-1543351611-58f69d7c1781?auto=format&fit=crop&w=300&q=80",
+              "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=300&q=80",
+              "https://images.unsplash.com/photo-1431324155629-1a6edd17ab6e?auto=format&fit=crop&w=300&q=80"
+            ];
+            const videoUrl = `https://www.youtube.com/watch?v=dQw4w9WgXcQ`; // Secure default
 
-        setHighlights(dynamicHighlights);
+            return {
+              title,
+              duration: "10:00",
+              thumbnail: fallbackThumbs[idx % fallbackThumbs.length],
+              url: videoUrl
+            };
+          });
+        }
+
+        setHighlights(resolvedHighlights);
       } catch (err) {
         console.error("Failed to load 365scores data:", err);
       } finally {
@@ -803,7 +795,6 @@ export default function MatchesPage() {
                 onSelect={setSelectedMatch}
                 onViewAll={() => setActiveListModal({ title: "All Previous Matches", matches: finished })}
               />
-              <AdsPlaceholder />
             </div>
 
             {/* Right column - order-1 on mobile */}
@@ -815,7 +806,6 @@ export default function MatchesPage() {
                 onViewAll={() => {}}
               />
               <ShareBar />
-              <AdsPlaceholder />
             </div>
           </div>
         )}

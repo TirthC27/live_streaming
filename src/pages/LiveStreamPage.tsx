@@ -3,51 +3,80 @@ import { useParams, Link } from "react-router-dom";
 import Hls from "hls.js";
 import { ArrowLeft } from "@phosphor-icons/react";
 
-interface StreamSource {
-  id: string;
-  title: string;
-  url: string;
-  description: string;
+interface StreamConfig {
+  activeUrl: string;
+  secondaryUrl: string;
+  activeUrlLabel: string;
+  secondaryUrlLabel: string;
 }
-
-const STREAM_SOURCES: Record<string, StreamSource> = {
-  bein: {
-    id: "bein",
-    title: "BeIN Sports Xtra",
-    url: "https://amg01334-beinsportsllc-beinxtra-samsungau-eiyvc.amagi.tv/playlist/amg01334-beinsportsllc-beinxtra-samsungau/playlist.m3u8",
-    description: "Live Sports Broadcast Channel",
-  },
-  google: {
-    id: "google",
-    title: "Google Linear HLS",
-    url: "https://dai.google.com/linear/hls/pb/event/GxrCGmwST0ixsrc_QgB6qw/stream/2a13ecad-d853-4070-bf97-6e0f116cbda4:TPE/master.m3u8",
-    description: "Direct Event Stream Channel",
-  },
-};
 
 export default function LiveStreamPage() {
   const { streamId } = useParams<{ streamId: string }>();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [config, setConfig] = useState<StreamConfig | null>(null);
+  const [viewers, setViewers] = useState(1200);
 
-  const stream = STREAM_SOURCES[streamId || ""] || STREAM_SOURCES.bein;
+  useEffect(() => {
+    // Viewer count changes randomly around 1200
+    const interval = setInterval(() => {
+      setViewers((prev) => {
+        const offset = Math.floor(Math.random() * 21) - 10; // -10 to +10
+        const nextVal = prev + offset;
+        return nextVal < 1000 ? 1000 : nextVal; // Keep it above 1k
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    async function loadStreamConfig() {
+      try {
+        const res = await fetch("https://streamx-server-286096169961.us-central1.run.app/admin/stream-config", {
+          headers: {
+            "x-admin-secret": "StreamXAdmin@2024#Secret"
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConfig(data);
+        }
+      } catch (err) {
+        console.error("Failed to load StreamX config:", err);
+      }
+    }
+    loadStreamConfig();
+  }, []);
+
+  const getStreamUrl = () => {
+    if (!config) return "";
+    return streamId === "secondary" ? config.secondaryUrl : config.activeUrl;
+  };
+
+  const getStreamTitle = () => {
+    if (!config) return "Loading Stream...";
+    return streamId === "secondary" ? config.secondaryUrlLabel : config.activeUrlLabel;
+  };
+
+  const streamUrl = getStreamUrl();
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !streamUrl) return;
 
     let hls: Hls | null = null;
+    setIsPlaying(false);
 
     if (Hls.isSupported()) {
       hls = new Hls();
-      hls.loadSource(stream.url);
+      hls.loadSource(streamUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
         setIsPlaying(true);
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = stream.url;
+      video.src = streamUrl;
       video.addEventListener("loadedmetadata", () => {
         video.play().catch(() => {});
         setIsPlaying(true);
@@ -59,7 +88,7 @@ export default function LiveStreamPage() {
         hls.destroy();
       }
     };
-  }, [stream.url]);
+  }, [streamUrl]);
 
   return (
     <div
@@ -100,19 +129,49 @@ export default function LiveStreamPage() {
               )}
             </div>
             <div>
-              <h1 className="text-xl font-bold">{stream.title}</h1>
-              <p className="text-sm text-zinc-400 mt-1">{stream.description}</p>
+              <h1 className="text-xl font-bold">{getStreamTitle()}</h1>
+              <p className="text-sm text-zinc-400 mt-1">Live Feed Channel from StreamX Server</p>
             </div>
           </div>
 
           {/* Right sidebar: Ads and Info - order-2 on mobile */}
           <div className="space-y-6 order-2">
+            {/* Viewers Box (Replaces Advertisement Block) */}
             <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
               <h3 className="text-sm font-bold uppercase tracking-wider text-accent border-b border-white/5 pb-2">
-                Advertisement
+                Live Viewers
               </h3>
-              <div className="mt-4 flex h-64 items-center justify-center rounded-lg border border-dashed border-white/10 bg-black/30">
-                <span className="text-xs text-zinc-500">Sponsored Ad Space</span>
+              <div className="mt-4 flex flex-col items-center justify-center py-6 rounded-lg bg-black/30">
+                <span className="text-4xl font-extrabold text-pink-400">
+                  {(viewers / 1000).toFixed(2)}k
+                </span>
+                <span className="text-xs text-zinc-500 mt-1 uppercase tracking-wider">Watching Now</span>
+              </div>
+            </div>
+
+            {/* Upcoming Features Box */}
+            <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-accent border-b border-white/5 pb-2">
+                Upcoming Features
+              </h3>
+              <div className="mt-3 space-y-3 text-xs">
+                {[
+                  { name: "Live Chatrooms", desc: "Interact with mates in real time." },
+                  { name: "YouTube Highlights", desc: "Catch the top plays instantly." },
+                  { name: "Comments Section", desc: "Share your thoughts on matches." },
+                  { name: "Community Page", desc: "Connect with fan clubs worldwide." },
+                  { name: "News Aggregator", desc: "Stay updated with trending headlines." }
+                ].map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-start border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                    <div>
+                      <p className="font-semibold text-white">{item.name}</p>
+                      <p className="text-zinc-500 text-[10px] mt-0.5">{item.desc}</p>
+                    </div>
+                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[9px] font-bold text-accent uppercase">
+                      Soon
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -128,7 +187,7 @@ export default function LiveStreamPage() {
                   <strong className="text-white">Quality:</strong> Adaptive HD
                 </p>
                 <p>
-                  <strong className="text-white">Server:</strong> CDN Edge
+                  <strong className="text-white">Server:</strong> StreamX Cloud Run
                 </p>
               </div>
             </div>
