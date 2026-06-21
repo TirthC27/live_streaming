@@ -10,11 +10,33 @@ function HLSPlayer() {
   const [isLive, setIsLive] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
-  const streamUrl = `${process.env.REACT_APP_PROXY_URL}/stream/index.m3u8`;
+  // 'primary' | 'secondary'
+  const [activeStream, setActiveStream] = useState('primary');
+  const [streamConfig, setStreamConfig] = useState({
+    primary: { label: 'Main Stream', available: true },
+    secondary: { label: 'Backup Stream', available: false },
+  });
 
-  const initPlayer = useCallback(() => {
+  const proxyBase = process.env.REACT_APP_PROXY_URL;
+
+  const streamUrls = {
+    primary: `${proxyBase}/stream/index.m3u8`,
+    secondary: `${proxyBase}/stream/secondary.m3u8`,
+  };
+
+  // Fetch stream config from the server (stream labels + availability)
+  useEffect(() => {
+    fetch(`${proxyBase}/stream/config`)
+      .then(r => r.json())
+      .then(data => setStreamConfig(data))
+      .catch(() => {/* keep defaults */});
+  }, [proxyBase]);
+
+  const initPlayer = useCallback((streamKey) => {
     const video = videoRef.current;
     if (!video) return;
+
+    const streamUrl = streamUrls[streamKey];
 
     setIsLoading(true);
     setIsOffline(false);
@@ -92,10 +114,10 @@ function HLSPlayer() {
       setIsOffline(true);
       setIsLoading(false);
     }
-  }, [streamUrl]);
+  }, [proxyBase]);
 
   useEffect(() => {
-    initPlayer();
+    initPlayer(activeStream);
 
     return () => {
       if (hlsRef.current) {
@@ -103,7 +125,7 @@ function HLSPlayer() {
         hlsRef.current = null;
       }
     };
-  }, [initPlayer]);
+  }, [activeStream]);
 
   const handleRetry = useCallback(() => {
     if (hlsRef.current) {
@@ -113,13 +135,20 @@ function HLSPlayer() {
     setIsLoading(true);
     setIsOffline(false);
     setTimeout(() => {
-      initPlayer();
+      initPlayer(activeStream);
     }, 3000);
-  }, [initPlayer]);
+  }, [initPlayer, activeStream]);
+
+  const switchStream = useCallback((key) => {
+    if (key === activeStream) return;
+    setActiveStream(key);
+  }, [activeStream]);
 
   if (isOffline) {
     return <OfflineScreen onRetry={handleRetry} />;
   }
+
+  const hasSecondary = streamConfig?.secondary?.available;
 
   return (
     <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl shadow-black/50 ring-1 ring-border/30">
@@ -143,6 +172,34 @@ function HLSPlayer() {
         <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-lg">
           <span className="w-2 h-2 bg-accent rounded-full animate-pulse-live" />
           <span className="text-xs font-bold text-white tracking-wider uppercase">Live</span>
+        </div>
+      )}
+
+      {/* Stream switcher — shown only when secondary stream is configured */}
+      {hasSecondary && (
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-1 p-1 bg-black/70 backdrop-blur-sm rounded-xl border border-white/10">
+          <button
+            id="stream-switcher-primary"
+            onClick={() => switchStream('primary')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              activeStream === 'primary'
+                ? 'bg-accent text-white shadow-md'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            {streamConfig.primary.label}
+          </button>
+          <button
+            id="stream-switcher-secondary"
+            onClick={() => switchStream('secondary')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              activeStream === 'secondary'
+                ? 'bg-accent text-white shadow-md'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            {streamConfig.secondary.label}
+          </button>
         </div>
       )}
     </div>

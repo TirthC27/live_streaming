@@ -39,61 +39,100 @@ app.get('/health', (req, res) => {
 
 // ===== Stream Proxy Routes =====
 
-// GET /stream/index.m3u8
+/**
+ * Shared helper: fetch a remote .m3u8 URL, rewrite all segment
+ * paths to go through /stream/segment, and send the result.
+ */
+async function proxyM3u8(sourceUrl, res) {
+  const response = await axios.get(sourceUrl, {
+    headers: {
+      'Referer': 'https://executeandship.com/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    },
+    responseType: 'text',
+    timeout: 10000,
+  });
+
+  const m3u8Content = response.data;
+
+  // Rewrite every non-comment line to route through our segment proxy.
+  // Using new URL() handles absolute, relative, and root-relative paths correctly.
+  const rewrittenLines = m3u8Content.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('#') || trimmed === '') return line;
+
+    let absoluteUrl;
+    try {
+      absoluteUrl = new URL(trimmed, sourceUrl).href;
+    } catch (e) {
+      absoluteUrl = trimmed;
+    }
+
+    return `/stream/segment?url=${encodeURIComponent(absoluteUrl)}`;
+  });
+
+  res.set({
+    'Content-Type': 'application/vnd.apple.mpegurl',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Access-Control-Allow-Origin': '*',
+  });
+
+  res.send(rewrittenLines.join('\n'));
+}
+
+// GET /stream/config — Public: returns stream labels so the client knows what to display
+app.get('/stream/config', async (req, res) => {
+  try {
+    const config = await streamService.getStreamConfig();
+    res.json({
+      primary: {
+        label: config.activeUrlLabel || 'Main Stream',
+        available: !!config.activeUrl,
+      },
+      secondary: {
+        label: config.secondaryUrlLabel || 'Backup Stream',
+        available: !!config.secondaryUrl,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching stream config:', error.message);
+    res.status(500).json({ error: 'Failed to fetch stream config' });
+  }
+});
+
+// GET /stream/index.m3u8 — Primary stream proxy
 app.get('/stream/index.m3u8', async (req, res) => {
   try {
-    // Read stream URL from Supabase
     const config = await streamService.getStreamConfig();
     const currentStreamUrl = config.activeUrl;
 
     if (!currentStreamUrl) {
-      return res.status(500).json({ error: 'Stream URL not configured in database' });
+      return res.status(500).json({ error: 'Primary stream URL not configured in database' });
     }
 
-    const response = await axios.get(currentStreamUrl, {
-      headers: {
-        'Referer': 'https://executeandship.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      responseType: 'text',
-      timeout: 10000
-    });
-
-    let m3u8Content = response.data;
-
-    // Determine base URL from the source URL
-    const baseUrl = currentStreamUrl.substring(0, currentStreamUrl.lastIndexOf('/') + 1);
-
-    // Rewrite segment URLs
-    const lines = m3u8Content.split('\n');
-    const rewrittenLines = lines.map(line => {
-      const trimmed = line.trim();
-      if (trimmed.startsWith('#') || trimmed === '') return line;
-
-      let absoluteUrl;
-      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        absoluteUrl = trimmed;
-      } else {
-        absoluteUrl = baseUrl + trimmed;
-      }
-
-      return `/stream/segment?url=${encodeURIComponent(absoluteUrl)}`;
-    });
-
-    const modifiedM3u8 = rewrittenLines.join('\n');
-
-    res.set({
-      'Content-Type': 'application/vnd.apple.mpegurl',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'Access-Control-Allow-Origin': '*'
-    });
-
-    res.send(modifiedM3u8);
+    await proxyM3u8(currentStreamUrl, res);
   } catch (error) {
-    console.error('Error fetching m3u8:', error.message);
-    res.status(502).json({ error: 'Failed to fetch stream manifest', details: error.message });
+    console.error('Error fetching primary m3u8:', error.message);
+    res.status(502).json({ error: 'Failed to fetch primary stream manifest', details: error.message });
+  }
+});
+
+// GET /stream/secondary.m3u8 — Secondary stream proxy
+app.get('/stream/secondary.m3u8', async (req, res) => {
+  try {
+    const config = await streamService.getStreamConfig();
+    const secondaryStreamUrl = config.secondaryUrl;
+
+    if (!secondaryStreamUrl) {
+      return res.status(404).json({ error: 'Secondary stream URL not configured in database' });
+    }
+
+    await proxyM3u8(secondaryStreamUrl, res);
+  } catch (error) {
+    console.error('Error fetching secondary m3u8:', error.message);
+    res.status(502).json({ error: 'Failed to fetch secondary stream manifest', details: error.message });
   }
 });
 
@@ -308,5 +347,9 @@ app.listen(PORT, () => {
   console.log(`   Stream:    http://localhost:${PORT}/stream/index.m3u8`);
   console.log(`   Config:    http://localhost:${PORT}/admin/stream-config`);
   console.log(`   YouTube:   http://localhost:${PORT}/matches/youtube-links`);
-  console.log(`   Database:  Supabase\n`);
+  console.log(`   Database:  Supabase`);
+  console.log(`   Stream 1:  http://localhost:${PORT}/stream/index.m3u8`);
+  console.log(`   Stream 2:  http://localhost:${PORT}/stream/secondary.m3u8`);
+  console.log(`   Cfg:       http://localhost:${PORT}/stream/config\n`);
 });
+

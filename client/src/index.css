@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 /* ===== Base Styles ===== */
+:root {
+  --color-background: #323055;
+  --color-text: #f4f4f5;
+  --color-accent: #433f81;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -12,7 +18,7 @@ body {
   padding: 0;
   background-color: #0f0f0f;
   color: #ffffff;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Geist', 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
