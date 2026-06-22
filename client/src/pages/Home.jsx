@@ -9,7 +9,7 @@ function ShareBar() {
           <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExempjZmVzbGZtNXl6MHM1YWpmMnV5NDl3YzFyamJudnNsOXk3ZjkxYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5UqWIbfRyfTjaRulMO/giphy.gif" alt="Football" className="h-full w-full object-cover"/>
         </div>
         <div>
-          <p className="text-lg font-semibold text-pink-300">Share FootyStream</p>
+          <p className="text-lg font-semibold text-pink-300">Share HiFootball</p>
           <p className="text-sm text-zinc-300">to your friends</p>
         </div>
         <div className="ml-4 flex flex-col items-center">
@@ -36,12 +36,12 @@ function ShareBar() {
 function AboutSection() {
     return (<div className="pb-16">
       <h2 className="text-xl font-bold text-white">
-        FootyStream — Watch live football online for free
+        HiFootball — Watch live football online for free
       </h2>
       <div className="mt-4 space-y-4 text-base leading-relaxed text-zinc-300">
         <p>
           Football is the most popular sport on the planet with billions of
-          fans worldwide. FootyStream brings you every major league and
+          fans worldwide. HiFootball brings you every major league and
           tournament in HD quality, completely free. From the Premier League
           and La Liga to the Champions League and World Cup qualifiers, we
           have you covered.
@@ -58,8 +58,8 @@ function AboutSection() {
             <div className="space-y-8">
               {[
             {
-                q: "Is FootyStream really free to use?",
-                a: "Yes, FootyStream is completely free. We believe that football should be accessible to everyone, regardless of their budget. We do not charge subscription fees, nor do we require pay-per-view payments for any of the matches broadcast on our platform."
+                q: "Is HiFootball really free to use?",
+                a: "Yes, HiFootball is completely free. We believe that football should be accessible to everyone, regardless of their budget. We do not charge subscription fees, nor do we require pay-per-view payments for any of the matches broadcast on our platform."
             },
             {
                 q: "Do I need to create an account to start watching?",

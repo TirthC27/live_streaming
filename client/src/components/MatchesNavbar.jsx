@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { MagnifyingGlass, List, SoccerBall, DiscordLogo, TelegramLogo, RedditLogo, XLogo, Heart, Globe, Users, SignIn, } from "@phosphor-icons/react";
 import { useState } from "react";
 const NAV_ITEMS = [
@@ -8,6 +8,24 @@ const NAV_ITEMS = [
 ];
 export default function MatchesNavbar() {
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const query = searchParams.get("search") || "";
+
+    const handleSearchChange = (e) => {
+        const val = e.target.value;
+        if (location.pathname !== "/matches") {
+            navigate(`/matches?search=${encodeURIComponent(val)}`);
+        } else {
+            if (val) {
+                setSearchParams({ search: val });
+            } else {
+                setSearchParams({});
+            }
+        }
+    };
+
     return (<header className="sticky top-0 z-40 bg-[#1b1843]/80 backdrop-blur-xl border-b border-white/5 w-full">
       <div className="flex max-w-[1400px] items-center gap-4 px-6 py-4 mx-auto">
         {/* Hamburger */}
@@ -19,13 +37,13 @@ export default function MatchesNavbar() {
         <Link to="/" className="flex items-center gap-2 text-xl font-bold tracking-tight text-white shrink-0">
           <SoccerBall size={26} weight="fill" className="text-accent"/>
           <span>
-            FOOTY<span className="text-accent">STREAM</span>
+            HI<span className="text-accent">FOOTBALL</span>
           </span>
         </Link>
 
         {/* Search bar */}
         <div className="hidden md:flex items-center flex-1 max-w-md ml-6 gap-0">
-          <input type="text" placeholder="Search matches, leagues, teams..." className="flex-1 rounded-l-xl border border-zinc-700 bg-zinc-800/80 px-4 py-3 text-sm text-white placeholder-zinc-500 outline-none backdrop-blur-sm transition-colors focus:border-emerald-500/50"/>
+          <input type="text" placeholder="Search matches, leagues, teams..." value={query} onChange={handleSearchChange} className="flex-1 rounded-l-xl border border-zinc-700 bg-zinc-800/80 px-4 py-3 text-sm text-white placeholder-zinc-500 outline-none backdrop-blur-sm transition-colors focus:border-emerald-500/50"/>
           <button className="rounded-r-xl bg-pink-200 px-4 py-3 text-black font-semibold transition-colors hover:bg-pink-300 active:scale-[0.98]">
             <MagnifyingGlass size={22} weight="bold"/>
           </button>
@@ -61,7 +79,7 @@ export default function MatchesNavbar() {
       {/* Mobile nav */}
       {mobileOpen && (<nav className="border-t border-zinc-800 px-6 pb-4 md:hidden bg-[#1b1843]">
           <div className="mt-3 flex gap-2">
-            <input type="text" placeholder="Search matches..." className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-white placeholder-zinc-500 outline-none"/>
+            <input type="text" placeholder="Search matches..." value={query} onChange={handleSearchChange} className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-white placeholder-zinc-500 outline-none"/>
             <button className="rounded-lg bg-accent px-4 text-white">
               <MagnifyingGlass size={16}/>
             </button>

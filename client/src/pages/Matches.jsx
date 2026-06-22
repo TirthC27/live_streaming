@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Play, Clock, Trophy, TelegramLogo, XLogo, RedditLogo, DiscordLogo, ShareNetwork, X, } from "@phosphor-icons/react";
 const PROXY_URL = process.env.REACT_APP_PROXY_URL || "http://localhost:4000";
 // 365Scores competitor image helper
@@ -11,13 +11,16 @@ function FeaturedMatch({ match }) {
         No completed target matches found
       </div>);
     }
-    return (<div className="rounded-xl border border-white/5 bg-[#1b1843] overflow-hidden">
+    const Content = () => (<>
       <div className="relative h-48">
         <img src={match.ytThumbnail || "/placeholder.webp"} alt="" className="h-full w-full object-cover object-[50%_20%]"/>
         <div className="absolute inset-0 bg-gradient-to-t from-[#1b1843] via-[#1b1843]/50 to-transparent"/>
         <span className="absolute top-3 left-3 rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
           Latest Finished
         </span>
+        {match.ytUrl && (<div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+            <Play size={40} weight="fill" className="text-white drop-shadow-lg"/>
+          </div>)}
       </div>
       <div className="flex items-center justify-between px-6 py-5">
         <div className="flex flex-col items-center gap-2">
@@ -35,6 +38,15 @@ function FeaturedMatch({ match }) {
           <span className="text-xs font-medium text-zinc-300">{match.awayCompetitor.symbolicName || match.awayCompetitor.name}</span>
         </div>
       </div>
+    </>);
+
+    if (match.ytUrl) {
+        return (<a href={match.ytUrl} target="_blank" rel="noopener noreferrer" className="block rounded-xl border border-white/5 bg-[#1b1843] overflow-hidden hover:border-white/10 hover:bg-[#201d4a] transition-all group">
+            <Content />
+          </a>);
+    }
+    return (<div className="rounded-xl border border-white/5 bg-[#1b1843] overflow-hidden">
+      <Content />
     </div>);
 }
 // Target Competition IDs
@@ -348,7 +360,7 @@ function TopHighlights({ highlights }) {
         </div>)}
     </div>);
 }
-function LiveNow({ matches: _matches, onSelect: _onSelect, onViewAll: _onViewAll }) {
+function LiveNow({ matches, onSelect: _onSelect, onViewAll: _onViewAll }) {
     const [config, setConfig] = useState(null);
     useEffect(() => {
         async function loadConfig() {
@@ -365,12 +377,19 @@ function LiveNow({ matches: _matches, onSelect: _onSelect, onViewAll: _onViewAll
         }
         loadConfig();
     }, []);
+    const latestLiveMatch = matches && matches.length > 0 ? matches[0] : null;
+    const primaryTitle = latestLiveMatch 
+        ? `${latestLiveMatch.homeCompetitor.symbolicName || latestLiveMatch.homeCompetitor.name} vs ${latestLiveMatch.awayCompetitor.symbolicName || latestLiveMatch.awayCompetitor.name}`
+        : (config?.primary?.label || "Main Stream");
+    const primaryDescription = latestLiveMatch
+        ? (latestLiveMatch.competitionName || "Live Match")
+        : "Live Sports Broadcast";
     const hardcodedStreams = config ? [
         {
             id: "primary",
-            title: config.primary?.label || "Main Stream",
+            title: primaryTitle,
             thumbnail: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=300&q=80",
-            description: "Live Sports Broadcast"
+            description: primaryDescription
         },
         {
             id: "secondary",
@@ -386,25 +405,123 @@ function LiveNow({ matches: _matches, onSelect: _onSelect, onViewAll: _onViewAll
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"/>
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500"/>
           </span>
-          Live Now
+          Live Streaming Now
         </h3>
       </div>
       {hardcodedStreams.length === 0 ? (<p className="text-sm text-zinc-400">Loading live streams...</p>) : (<div className="flex gap-4 overflow-x-auto pb-2">
-          {hardcodedStreams.map((stream, idx) => (<Link key={idx} to={`/watch/${stream.id}`} className="min-w-[240px] flex-shrink-0 rounded-lg border border-white/5 bg-[#1b1843] overflow-hidden hover:bg-white/5 transition-colors group block">
-              <div className="relative h-28 overflow-hidden">
-                <img src={stream.thumbnail} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-105"/>
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <Play size={24} weight="fill" className="text-white drop-shadow-md"/>
+          {hardcodedStreams.map((stream, idx) => {
+              const isPrimaryMatch = stream.id === "primary" && latestLiveMatch;
+              return (
+                  <Link key={idx} to={`/watch/${stream.id}`} className="min-w-[280px] flex-shrink-0 rounded-lg border border-white/5 bg-[#1b1843] hover:bg-[#201d4a] hover:border-white/10 transition-all group block p-4">
+                      {isPrimaryMatch ? (
+                          <div className="flex flex-col justify-between h-24">
+                              {/* Top Bar */}
+                              <div className="flex items-center justify-between">
+                                  <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400 uppercase tracking-wider animate-pulse flex items-center gap-1">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block"/>
+                                      Live Stream
+                                  </span>
+                                  <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[150px]">
+                                      {latestLiveMatch.competitionName || "Soccer"}
+                                  </span>
+                              </div>
+
+                              {/* Teams & Score Matchup */}
+                              <div className="flex items-center justify-between gap-2 mt-2">
+                                  {/* Home Team */}
+                                  <div className="flex flex-col items-center gap-1 w-5/12 min-w-0">
+                                      <img src={getLogo(latestLiveMatch.homeCompetitor.id)} alt="" className="h-8 w-8 object-contain flex-shrink-0"/>
+                                      <span className="text-xs font-semibold text-zinc-200 truncate w-full text-center">{latestLiveMatch.homeCompetitor.symbolicName || latestLiveMatch.homeCompetitor.name}</span>
+                                  </div>
+
+                                  {/* Score */}
+                                  <div className="flex flex-col items-center justify-center flex-shrink-0 w-2/12">
+                                      <span className="rounded bg-zinc-850 px-2 py-1 text-xs font-bold text-white whitespace-nowrap group-hover:bg-accent group-hover:text-black transition-colors">
+                                          {latestLiveMatch.homeCompetitor.score >= 0 ? latestLiveMatch.homeCompetitor.score : 0} - {latestLiveMatch.awayCompetitor.score >= 0 ? latestLiveMatch.awayCompetitor.score : 0}
+                                      </span>
+                                  </div>
+
+                                  {/* Away Team */}
+                                  <div className="flex flex-col items-center gap-1 w-5/12 min-w-0">
+                                      <img src={getLogo(latestLiveMatch.awayCompetitor.id)} alt="" className="h-8 w-8 object-contain flex-shrink-0"/>
+                                      <span className="text-xs font-semibold text-zinc-200 truncate w-full text-center">{latestLiveMatch.awayCompetitor.symbolicName || latestLiveMatch.awayCompetitor.name}</span>
+                                  </div>
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="flex flex-col justify-between h-24">
+                              {/* Top Bar */}
+                              <div className="flex items-center justify-between">
+                                  <span className="rounded bg-zinc-700/30 px-2 py-0.5 text-[9px] font-bold text-zinc-300 uppercase tracking-wider">
+                                      Stream
+                                  </span>
+                              </div>
+
+                              {/* Title / Description */}
+                              <div className="mt-2">
+                                  <p className="text-sm font-bold text-white truncate group-hover:text-accent transition-colors flex items-center gap-1.5">
+                                      <Play size={14} weight="fill" className="text-zinc-400 group-hover:text-black"/>
+                                      {stream.title}
+                                  </p>
+                                  <p className="text-[10px] text-zinc-400 mt-1 truncate">{stream.description}</p>
+                              </div>
+                          </div>
+                      )}
+                  </Link>
+              );
+          })}
+        </div>)}
+    </div>);
+}
+function AllLiveMatchesRow({ matches, onSelect }) {
+    return (<div className="rounded-xl border border-white/5 bg-[#1b1843] p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-base font-bold text-white">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"/>
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"/>
+          </span>
+          Live Match Scores
+        </h3>
+      </div>
+      {matches.length === 0 ? (<p className="text-sm text-zinc-400">No live matches in progress</p>) : (<div className="space-y-0 divide-y divide-zinc-800">
+          {matches.map((m) => (<div key={m.id} onClick={() => onSelect(m)} className="flex items-center justify-between py-3 rounded px-1 hover:bg-white/5 cursor-pointer transition-colors gap-2">
+              {/* Home Team */}
+              <div className="flex flex-col gap-1 w-5/12 min-w-0">
+                <div className="flex items-center gap-2">
+                  <img src={getLogo(m.homeCompetitor.id)} alt="" className="h-6 w-6 object-contain flex-shrink-0"/>
+                  <span className="text-xs sm:text-sm font-medium text-zinc-200 truncate">{m.homeCompetitor.symbolicName || m.homeCompetitor.name}</span>
                 </div>
-                <span className="absolute top-2 left-2 rounded bg-red-500 px-2 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider animate-pulse">
-                  Live Stream
+                {m.homeScorers && m.homeScorers.length > 0 && (
+                  <div className="text-xs text-zinc-400 pl-8 flex flex-col gap-0.5">
+                    {m.homeScorers.map((s, idx) => (
+                      <span key={idx}>⚽ {s}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Score & Time Badge */}
+              <div className="flex flex-col items-center justify-center flex-shrink-0 w-2/12">
+                <span className="rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs sm:text-sm font-bold text-emerald-400 whitespace-nowrap">
+                  {m.homeCompetitor.score >= 0 ? m.homeCompetitor.score : 0} - {m.awayCompetitor.score >= 0 ? m.awayCompetitor.score : 0}
                 </span>
+                <span className="text-[11px] sm:text-xs font-semibold text-zinc-400 mt-1">{m.gameTimeDisplay || m.statusText || "Live"}</span>
               </div>
-              <div className="p-3">
-                <p className="text-xs font-semibold text-white truncate">{stream.title}</p>
-                <p className="text-[10px] text-zinc-400 mt-1 truncate">{stream.description}</p>
+              {/* Away Team */}
+              <div className="flex flex-col gap-1 w-5/12 min-w-0 items-end">
+                <div className="flex items-center gap-2 justify-end">
+                  <span className="text-xs sm:text-sm font-medium text-zinc-200 truncate text-right">{m.awayCompetitor.symbolicName || m.awayCompetitor.name}</span>
+                  <img src={getLogo(m.awayCompetitor.id)} alt="" className="h-6 w-6 object-contain flex-shrink-0"/>
+                </div>
+                {m.awayScorers && m.awayScorers.length > 0 && (
+                  <div className="text-xs text-zinc-400 pr-8 flex flex-col items-end gap-0.5">
+                    {m.awayScorers.map((s, idx) => (
+                      <span key={idx}>{s} ⚽</span>
+                    ))}
+                  </div>
+                )}
               </div>
-            </Link>))}
+            </div>))}
         </div>)}
     </div>);
 }
@@ -417,7 +534,7 @@ function ShareBar() {
             <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExempjZmVzbGZtNXl6MHM1YWpmMnV5NDl3YzFyamJudnNsOXk3ZjkxYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5UqWIbfRyfTjaRulMO/giphy.gif" alt="Football" className="h-full w-full object-cover"/>
           </div>
           <div className="min-w-[150px]">
-            <p className="text-lg font-semibold text-pink-300">Share FootyStream</p>
+            <p className="text-lg font-semibold text-pink-300">Share HiFootball</p>
             <p className="text-sm text-zinc-300">to your friends</p>
           </div>
           <div className="sm:ml-auto flex flex-col items-center">
@@ -503,43 +620,135 @@ export default function MatchesPage() {
                         .sort((a, b) => getCompetitionPreference(a.competitionId) - getCompetitionPreference(b.competitionId));
                 };
                 const liveMatches = filterAndSort((liveData.games || []).filter((g) => g.shortStatusText !== "FT" && g.shortStatusText !== "Ended" && g.shortStatusText !== "NS" && g.statusGroup === 3), compMapLive);
+
+                // Fetch details for live matches to get scorers in parallel
+                const liveMatchesWithScorers = await Promise.all(
+                    liveMatches.map(async (m) => {
+                        try {
+                            const detailRes = await fetch(`https://webws.365scores.com/web/game/?appTypeId=5&langId=1&timezoneName=Asia%2FCalcutta&userCountryId=80&gameId=${m.id}`);
+                            if (detailRes.ok) {
+                                const detailData = await detailRes.json();
+                                const gameObj = detailData.game || {};
+                                const events = gameObj.events || [];
+                                const members = gameObj.members || [];
+                                
+                                const memberMap = new Map(members.map(mem => [mem.id, mem]));
+                                const goalEvents = events.filter(e => e.eventType && e.eventType.id === 1);
+                                
+                                const homeScorers = [];
+                                const awayScorers = [];
+                                
+                                goalEvents.forEach(evt => {
+                                    const scorer = memberMap.get(evt.playerId);
+                                    const scorerName = scorer ? scorer.shortName || scorer.name : "Goal";
+                                    const time = evt.gameTimeDisplay;
+                                    const goalStr = `${scorerName} ${time}`;
+                                    if (evt.competitorId === m.homeCompetitor.id) {
+                                        homeScorers.push(goalStr);
+                                    } else if (evt.competitorId === m.awayCompetitor.id) {
+                                        awayScorers.push(goalStr);
+                                    }
+                                });
+                                
+                                return {
+                                    ...m,
+                                    homeScorers,
+                                    awayScorers
+                                };
+                            }
+                        } catch (err) {
+                            console.error("Error fetching detail for live match", m.id, err);
+                        }
+                        return { ...m, homeScorers: [], awayScorers: [] };
+                    })
+                );
+
                 const upcomingMatches = filterAndSort((upcomingData.games || []).filter((g) => g.shortStatusText === "NS" || g.statusText === "NS" || g.statusGroup === 2), compMapUp);
                 const finishedMatches = filterAndSort((finishedData.games || []).filter((g) => g.shortStatusText === "FT" || g.shortStatusText === "Ended" || g.statusText === "Ended" || g.statusGroup === 4), compMapFin);
                 const featuredMatches = filterAndSort(featuredData.games || [], compMapFeat);
-                const activeFeaturedMatch = featuredMatches[0] || finishedMatches[0] || null;
-                let featuredYtThumbnail = "";
-                const updatedFeatured = activeFeaturedMatch
-                    ? { ...activeFeaturedMatch, ytThumbnail: featuredYtThumbnail }
-                    : null;
-                setLive(liveMatches);
+                setLive(liveMatchesWithScorers);
                 setUpcoming(upcomingMatches);
                 setFinished(finishedMatches);
-                setFeatured(updatedFeatured);
+
                 // Fetch YouTube highlights from the public matches/youtube-links endpoint
-                let resolvedHighlights = [];
+                let serverLinks = [];
                 try {
                     const ytRes = await fetch(`${PROXY_URL}/matches/youtube-links`);
                     if (ytRes.ok) {
                         const ytData = await ytRes.json();
-                        const serverLinks = ytData.links || [];
-                        // Map valid live/highlights or map standard query fallback if API matches lack active videoId
-                        resolvedHighlights = serverLinks
-                            .filter((l) => l.videoId)
-                            .map((l) => ({
-                            title: l.videoTitle || `${l.channelName} Live Stream`,
-                            duration: "LIVE",
-                            thumbnail: l.thumbnailUrl || "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=300&q=80",
-                            url: l.videoUrl || `https://www.youtube.com/watch?v=${l.videoId}`
-                        }));
+                        serverLinks = ytData.links || [];
                     }
                 }
                 catch (err) {
                     console.error("Failed to load server YouTube links:", err);
                 }
-                // Use fallback if server yields empty active highlights
-                if (resolvedHighlights.length === 0) {
-                    const activeFinished = finishedMatches.slice(0, 4);
-                    resolvedHighlights = activeFinished.map((match, idx) => {
+
+                // Filter only matches that have active video links (isLive = true / has videoId)
+                const activeHighlights = serverLinks.filter((l) => l.videoId && l.isLive);
+
+                // We want to identify live matches to exclude them from the left featured match
+                const liveMatchIds = new Set(liveMatches.map((m) => m.id.toString()));
+
+                // Filter active highlights that are finished (i.e. not currently live)
+                const finishedHighlights = activeHighlights.filter((h) => {
+                    const matchId = h.channelId.replace("match_", "");
+                    return !liveMatchIds.has(matchId);
+                });
+
+                let finalFeatured = null;
+                let finalHighlights = [];
+
+                if (finishedHighlights.length > 0) {
+                    // Left div gets the first finished match with a youtube link
+                    const featuredHighlight = finishedHighlights[0];
+                    const matchId = featuredHighlight.channelId.replace("match_", "");
+                    const allGames = [...finishedMatches, ...liveMatches, ...upcomingMatches, ...featuredMatches];
+                    const matchedGame = allGames.find((g) => g.id.toString() === matchId);
+
+                    if (matchedGame) {
+                        finalFeatured = {
+                            ...matchedGame,
+                            ytThumbnail: featuredHighlight.thumbnailUrl,
+                            ytUrl: featuredHighlight.videoUrl,
+                            ytTitle: featuredHighlight.videoTitle
+                        };
+                    } else {
+                        // Fallback: construct game object from highlight data
+                        const [homeName, awayName] = (featuredHighlight.channelName || "Home vs Away").split(" vs ");
+                        finalFeatured = {
+                            id: matchId,
+                            homeCompetitor: { name: homeName || "Home", id: 0 },
+                            awayCompetitor: { name: awayName || "Away", id: 0 },
+                            ytThumbnail: featuredHighlight.thumbnailUrl,
+                            ytUrl: featuredHighlight.videoUrl,
+                            ytTitle: featuredHighlight.videoTitle,
+                            competitionName: "Highlights"
+                        };
+                    }
+
+                    // Right div gets the remaining active highlights, excluding the featured one
+                    const remainingHighlights = activeHighlights.filter(
+                        (h) => h.channelId !== featuredHighlight.channelId
+                    );
+                    finalHighlights = remainingHighlights.slice(0, 4).map((h) => ({
+                        title: h.videoTitle || `${h.channelName} Highlights`,
+                        duration: "10:00",
+                        thumbnail: h.thumbnailUrl || "/placeholder.webp",
+                        url: h.videoUrl
+                    }));
+                } else {
+                    // Fallback if no server links or no finished highlights found
+                    const fallbackFinished = finishedMatches.filter((m) => !liveMatchIds.has(m.id.toString()));
+                    const activeFeaturedMatch = fallbackFinished[0] || finishedMatches[0] || featuredMatches[0] || null;
+                    finalFeatured = activeFeaturedMatch
+                        ? { ...activeFeaturedMatch, ytThumbnail: "" }
+                        : null;
+
+                    // Remaining for highlights
+                    const remainingFallback = finishedMatches.filter(
+                        (m) => !activeFeaturedMatch || m.id !== activeFeaturedMatch.id
+                    );
+                    finalHighlights = remainingFallback.slice(0, 4).map((match, idx) => {
                         const homeName = match.homeCompetitor.name;
                         const awayName = match.awayCompetitor.name;
                         const title = `${homeName} vs ${awayName} Highlights`;
@@ -549,16 +758,17 @@ export default function MatchesPage() {
                             "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=300&q=80",
                             "https://images.unsplash.com/photo-1431324155629-1a6edd17ab6e?auto=format&fit=crop&w=300&q=80"
                         ];
-                        const videoUrl = `https://www.youtube.com/watch?v=dQw4w9WgXcQ`; // Secure default
                         return {
                             title,
                             duration: "10:00",
                             thumbnail: fallbackThumbs[idx % fallbackThumbs.length],
-                            url: videoUrl
+                            url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                         };
                     });
                 }
-                setHighlights(resolvedHighlights);
+
+                setFeatured(finalFeatured);
+                setHighlights(finalHighlights);
             }
             catch (err) {
                 console.error("Failed to load 365scores data:", err);
@@ -569,6 +779,40 @@ export default function MatchesPage() {
         }
         loadData();
     }, []);
+
+    const [searchParams] = useSearchParams();
+    const query = (searchParams.get("search") || "").toLowerCase().trim();
+
+    const filteredLive = live.filter(m => {
+        if (!query) return true;
+        const home = (m.homeCompetitor?.name || "").toLowerCase();
+        const homeSym = (m.homeCompetitor?.symbolicName || "").toLowerCase();
+        const away = (m.awayCompetitor?.name || "").toLowerCase();
+        const awaySym = (m.awayCompetitor?.symbolicName || "").toLowerCase();
+        const comp = (m.competitionName || "").toLowerCase();
+        return home.includes(query) || homeSym.includes(query) || away.includes(query) || awaySym.includes(query) || comp.includes(query);
+    });
+
+    const filteredUpcoming = upcoming.filter(m => {
+        if (!query) return true;
+        const home = (m.homeCompetitor?.name || "").toLowerCase();
+        const homeSym = (m.homeCompetitor?.symbolicName || "").toLowerCase();
+        const away = (m.awayCompetitor?.name || "").toLowerCase();
+        const awaySym = (m.awayCompetitor?.symbolicName || "").toLowerCase();
+        const comp = (m.competitionName || "").toLowerCase();
+        return home.includes(query) || homeSym.includes(query) || away.includes(query) || awaySym.includes(query) || comp.includes(query);
+    });
+
+    const filteredFinished = finished.filter(m => {
+        if (!query) return true;
+        const home = (m.homeCompetitor?.name || "").toLowerCase();
+        const homeSym = (m.homeCompetitor?.symbolicName || "").toLowerCase();
+        const away = (m.awayCompetitor?.name || "").toLowerCase();
+        const awaySym = (m.awayCompetitor?.symbolicName || "").toLowerCase();
+        const comp = (m.competitionName || "").toLowerCase();
+        return home.includes(query) || homeSym.includes(query) || away.includes(query) || awaySym.includes(query) || comp.includes(query);
+    });
+
     return (<div className="min-h-screen w-full overflow-x-hidden" style={{
             background: "linear-gradient(180deg, #15151E 0%, #0F1020 20%, #090B14 100%)",
         }}>
@@ -591,14 +835,15 @@ export default function MatchesPage() {
             {/* Left column - order-2 on mobile so highlights/streams appear first */}
             <div className="space-y-6 order-2 lg:order-1 min-w-0 w-full">
               <FeaturedMatchRow match={featured} onSelect={setSelectedMatch}/>
-              <UpcomingMatchesRow matches={upcoming} onSelect={setSelectedMatch} onViewAll={() => setActiveListModal({ title: "All Upcoming Matches", matches: upcoming })}/>
-              <Last5MatchesRow matches={finished} onSelect={setSelectedMatch} onViewAll={() => setActiveListModal({ title: "All Previous Matches", matches: finished })}/>
+              <UpcomingMatchesRow matches={filteredUpcoming} onSelect={setSelectedMatch} onViewAll={() => setActiveListModal({ title: "All Upcoming Matches", matches: filteredUpcoming })}/>
+              <Last5MatchesRow matches={filteredFinished} onSelect={setSelectedMatch} onViewAll={() => setActiveListModal({ title: "All Previous Matches", matches: filteredFinished })}/>
             </div>
 
             {/* Right column - order-1 on mobile */}
             <div className="space-y-6 order-1 lg:order-2 min-w-0 w-full">
               <TopHighlights highlights={highlights}/>
-              <LiveNow matches={live} onSelect={setSelectedMatch} onViewAll={() => { }}/>
+              <LiveNow matches={filteredLive} onSelect={setSelectedMatch} onViewAll={() => { }}/>
+              <AllLiveMatchesRow matches={filteredLive} onSelect={setSelectedMatch}/>
               <ShareBar />
             </div>
           </div>)}

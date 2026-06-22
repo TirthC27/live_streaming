@@ -1,7 +1,23 @@
-import { MagnifyingGlass, Play, } from "@phosphor-icons/react";
-import { Link } from "react-router-dom";
+import { MagnifyingGlass, Play } from "@phosphor-icons/react";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { TOP_SEARCHES } from "../data/posts";
 export default function Hero() {
+    const [searchVal, setSearchVal] = useState("");
+    const navigate = useNavigate();
+
+    const handleSearchSubmit = () => {
+        if (searchVal.trim()) {
+            navigate(`/matches?search=${encodeURIComponent(searchVal.trim())}`);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") {
+            handleSearchSubmit();
+        }
+    };
+
     return (<section className="px-4 pt-0 pb-6 sm:px-6 lg:px-16 xl:px-32">
       <div className="relative overflow-hidden rounded-2xl md:rounded-3xl">
         {/* Background image + overlay */}
@@ -16,13 +32,13 @@ export default function Hero() {
           <div className="max-w-xl">
             {/* Title */}
             <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl">
-              FOOTY<span className="text-emerald-400">STREAM</span>
+              HI<span className="text-emerald-400">FOOTBALL</span>
             </h1>
 
             {/* Search bar */}
             <div className="mt-8 flex gap-0">
-              <input type="text" placeholder="Search matches, leagues, teams..." className="flex-1 rounded-l-xl border border-zinc-700 bg-zinc-800/80 px-5 py-3.5 text-sm text-white placeholder-zinc-500 outline-none backdrop-blur-sm transition-colors focus:border-emerald-500/50"/>
-              <button className="rounded-r-xl bg-pink-200 px-5 text-black font-semibold transition-colors hover:bg-pink-300 active:scale-[0.98]">
+              <input type="text" placeholder="Search matches, leagues, teams..." value={searchVal} onChange={(e) => setSearchVal(e.target.value)} onKeyDown={handleKeyDown} className="flex-1 rounded-l-xl border border-zinc-700 bg-zinc-800/80 px-5 py-3.5 text-sm text-white placeholder-zinc-500 outline-none backdrop-blur-sm transition-colors focus:border-emerald-500/50"/>
+              <button onClick={handleSearchSubmit} className="rounded-r-xl bg-pink-200 px-5 text-black font-semibold transition-colors hover:bg-pink-300 active:scale-[0.98]">
                 <MagnifyingGlass size={20} weight="bold"/>
               </button>
             </div>
@@ -31,9 +47,9 @@ export default function Hero() {
             <div className="mt-4 text-sm leading-relaxed text-zinc-400">
               <span className="font-medium text-zinc-300">Top search:</span>{" "}
               {TOP_SEARCHES.map((s, i) => (<span key={s}>
-                  <a href="#" className="transition-colors hover:text-pink-300">
+                  <button onClick={() => navigate(`/matches?search=${encodeURIComponent(s)}`)} className="transition-colors hover:text-pink-300 text-left bg-transparent border-none p-0 inline cursor-pointer">
                     {s}
-                  </a>
+                  </button>
                   {i < TOP_SEARCHES.length - 1 && (<span className="mx-1 text-zinc-600">|</span>)}
                 </span>))}
             </div>

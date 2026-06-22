@@ -10,7 +10,7 @@ export default function Navbar() {
         <Link to="/" className="flex items-center gap-2 text-xl font-bold tracking-tight text-white">
           <SoccerBall size={28} weight="fill" className="text-accent"/>
           <span>
-            FOOTY<span className="text-accent">STREAM</span>
+            HI<span className="text-accent">FOOTBALL</span>
           </span>
         </Link>
 

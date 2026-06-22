@@ -4,6 +4,26 @@ const axios = require('axios');
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const CACHE_DURATION_MS = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 
+const TARGET_COMPETITIONS = new Set([5930, 364, 192, 193, 7, 11, 25, 17, 16, 565, 573, 592, 579, 585, 588, 272]);
+
+function getCompetitionPreference(competitionId) {
+  if (competitionId === 5930) return 1;
+  if (competitionId === 364) return 2;
+  if (competitionId === 192) return 3;
+  if ([7, 11, 25, 17, 16].includes(competitionId)) return 4;
+  if (competitionId === 193) return 5;
+  if ([565, 573, 592, 579, 585, 588].includes(competitionId)) return 6;
+  if (competitionId === 272) return 7;
+  return 8;
+}
+
+function getFormattedDate(date) {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 /**
  * Get YouTube links — serves from cache if fresh, otherwise fetches from YouTube API.
  */
@@ -57,26 +77,49 @@ async function forceRefreshYoutube() {
 }
 
 /**
- * Core function: fetches live status from YouTube Data API v3 for all active channels,
- * upserts results into youtube_cache, and returns the fresh data.
+ * Core function: fetches recent matches from 365scores, filters & sorts them,
+ * searches YouTube for highlights, and caches results in Supabase.
  */
 async function fetchAndCacheYoutubeData() {
   try {
-    // Fetch active channels from youtube_channels table
-    const { data: channels, error: channelsError } = await supabase
-      .from('youtube_channels')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order', { ascending: true })
-      .limit(6);
+    const today = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    const startDate = getFormattedDate(sevenDaysAgo);
+    const endDate = getFormattedDate(today);
 
-    if (channelsError) {
-      console.error('❌ Error fetching youtube_channels:', channelsError.message);
-      throw new Error('Failed to fetch YouTube channels');
+    let games = [];
+    try {
+      const response = await axios.get('https://webws.365scores.com/web/games/allscores/', {
+        params: {
+          appTypeId: 5,
+          langId: 1,
+          timezoneName: 'Asia/Calcutta',
+          userCountryId: 80,
+          sports: 1,
+          startDate,
+          endDate,
+          onlyMajorGames: 'true'
+        },
+        timeout: 10000
+      });
+      games = response.data.games || [];
+    } catch (apiErr) {
+      console.error('❌ Error fetching from 365scores:', apiErr.message);
     }
 
-    if (!channels || channels.length === 0) {
-      console.warn('⚠️ No active YouTube channels configured');
+    const filteredMatches = games.filter(
+      (game) => game && game.competitionId && TARGET_COMPETITIONS.has(game.competitionId)
+    );
+
+    const sortedMatches = filteredMatches.sort(
+      (a, b) => getCompetitionPreference(a.competitionId) - getCompetitionPreference(b.competitionId)
+    );
+
+    const topMatches = sortedMatches.slice(0, 5);
+
+    if (topMatches.length === 0) {
+      console.warn('⚠️ No active matches found in the specified competitions');
       return {
         links: [],
         cached: false,
@@ -85,17 +128,81 @@ async function fetchAndCacheYoutubeData() {
       };
     }
 
-    // Fetch live status for each channel (parallel, with per-channel error handling)
+    // Fetch highlights for each match in parallel
     const results = await Promise.all(
-      channels.map(async (channel) => {
+      topMatches.map(async (match) => {
+        const homeTeam = match.homeCompetitor?.name || 'Home Team';
+        const awayTeam = match.awayCompetitor?.name || 'Away Team';
+        const matchId = match.id;
+        const channelId = `match_${matchId}`;
+        const channelName = `${homeTeam} vs ${awayTeam}`;
+
         try {
-          return await fetchChannelLiveStatus(channel);
-        } catch (err) {
-          console.error(`❌ Failed to fetch channel ${channel.channel_name} (${channel.channel_id}):`, err.message);
-          // Return offline status if individual channel fails
+          if (!YOUTUBE_API_KEY) {
+            console.warn('⚠️ YOUTUBE_API_KEY not configured — marking match highlights as offline');
+            return {
+              channel_id: channelId,
+              channel_name: channelName,
+              video_id: null,
+              video_title: null,
+              video_url: null,
+              thumbnail_url: null,
+              is_live: false,
+              fetched_at: new Date().toISOString(),
+            };
+          }
+
+          const query = `${homeTeam} vs ${awayTeam} highlights`;
+          const ytResponse = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+            params: {
+              part: 'snippet',
+              q: query,
+              type: 'video',
+              maxResults: 1,
+              key: YOUTUBE_API_KEY,
+            },
+            timeout: 10000,
+          });
+
+          const items = ytResponse.data.items;
+
+          if (items && items.length > 0) {
+            const video = items[0];
+            const videoId = video.id.videoId;
+            const snippet = video.snippet;
+
+            return {
+              channel_id: channelId,
+              channel_name: channelName,
+              video_id: videoId,
+              video_title: snippet.title,
+              video_url: `https://www.youtube.com/watch?v=${videoId}`,
+              thumbnail_url:
+                snippet.thumbnails.maxres?.url ||
+                snippet.thumbnails.high?.url ||
+                snippet.thumbnails.medium?.url ||
+                snippet.thumbnails.default?.url ||
+                null,
+              is_live: true,
+              fetched_at: new Date().toISOString(),
+            };
+          }
+
           return {
-            channel_id: channel.channel_id,
-            channel_name: channel.channel_name,
+            channel_id: channelId,
+            channel_name: channelName,
+            video_id: null,
+            video_title: null,
+            video_url: null,
+            thumbnail_url: null,
+            is_live: false,
+            fetched_at: new Date().toISOString(),
+          };
+        } catch (err) {
+          console.error(`❌ Failed to fetch YouTube highlights for match ${channelName}:`, err.message);
+          return {
+            channel_id: channelId,
+            channel_name: channelName,
             video_id: null,
             video_title: null,
             video_url: null,
@@ -107,7 +214,14 @@ async function fetchAndCacheYoutubeData() {
       })
     );
 
-    // STEP 3: Save to database (upsert on channel_id)
+    // Clear old cache entries to keep the table clean and avoid stale checks
+    try {
+      await supabase.from('youtube_cache').delete().neq('channel_id', '');
+    } catch (delErr) {
+      console.error('❌ Error clearing youtube_cache:', delErr.message);
+    }
+
+    // Save results to Supabase (upsert on conflict channel_id)
     const { data: upsertedData, error: upsertError } = await supabase
       .from('youtube_cache')
       .upsert(results, { onConflict: 'channel_id' })
@@ -115,13 +229,12 @@ async function fetchAndCacheYoutubeData() {
 
     if (upsertError) {
       console.error('❌ Error upserting youtube_cache:', upsertError.message);
-      // Still return the results even if upsert failed
     }
 
     const finalData = upsertedData || results;
     const now = new Date().toISOString();
 
-    console.log(`✅ YouTube data refreshed: ${finalData.filter((r) => r.is_live).length}/${finalData.length} channels live`);
+    console.log(`✅ YouTube highlights refreshed: ${finalData.filter((r) => r.is_live).length}/${finalData.length} matches live`);
 
     return {
       links: formatLinks(finalData),
@@ -133,71 +246,6 @@ async function fetchAndCacheYoutubeData() {
     console.error('❌ fetchAndCacheYoutubeData error:', err.message);
     throw err;
   }
-}
-
-/**
- * Fetch live status for a single YouTube channel using the YouTube Data API v3.
- */
-async function fetchChannelLiveStatus(channel) {
-  if (!YOUTUBE_API_KEY) {
-    console.warn('⚠️ YOUTUBE_API_KEY not configured — marking channel as offline');
-    return {
-      channel_id: channel.channel_id,
-      channel_name: channel.channel_name,
-      video_id: null,
-      video_title: null,
-      video_url: null,
-      thumbnail_url: null,
-      is_live: false,
-      fetched_at: new Date().toISOString(),
-    };
-  }
-
-  const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
-    params: {
-      part: 'snippet',
-      channelId: channel.channel_id,
-      eventType: 'live',
-      type: 'video',
-      key: YOUTUBE_API_KEY,
-    },
-    timeout: 10000,
-  });
-
-  const items = response.data.items;
-
-  if (items && items.length > 0) {
-    const liveVideo = items[0];
-    const videoId = liveVideo.id.videoId;
-    const snippet = liveVideo.snippet;
-
-    return {
-      channel_id: channel.channel_id,
-      channel_name: channel.channel_name,
-      video_id: videoId,
-      video_title: snippet.title,
-      video_url: `https://www.youtube.com/watch?v=${videoId}`,
-      thumbnail_url:
-        snippet.thumbnails.high?.url ||
-        snippet.thumbnails.medium?.url ||
-        snippet.thumbnails.default?.url ||
-        null,
-      is_live: true,
-      fetched_at: new Date().toISOString(),
-    };
-  }
-
-  // No live video found
-  return {
-    channel_id: channel.channel_id,
-    channel_name: channel.channel_name,
-    video_id: null,
-    video_title: null,
-    video_url: null,
-    thumbnail_url: null,
-    is_live: false,
-    fetched_at: new Date().toISOString(),
-  };
 }
 
 /**

@@ -25,7 +25,7 @@ export default function CommunityPostPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-zinc-950/60 to-transparent"/>
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
           <h1 className="text-2xl font-bold text-white md:text-4xl">
-            FootyStream <span className="text-accent">Connect</span>
+            HiFootball <span className="text-accent">Connect</span>
           </h1>
         </div>
       </div>

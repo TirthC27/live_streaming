@@ -47,7 +47,7 @@ function App() {
         </Routes>
       </main>
       <footer className="border-t border-white/5 py-8 text-center text-xs text-zinc-600">
-        <p>FootyStream &copy; {new Date().getFullYear()}. For educational purposes only.</p>
+        <p>HiFootball &copy; {new Date().getFullYear()}. For educational purposes only.</p>
       </footer>
     </div>
   );
