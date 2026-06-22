@@ -3,7 +3,7 @@ import { MagnifyingGlass, List, SoccerBall, DiscordLogo, TelegramLogo, RedditLog
 import { useState } from "react";
 const NAV_ITEMS = [
     { label: "Favourites", icon: Heart, to: "#" },
-    { label: "Leagues", icon: Globe, to: "#" },
+    { label: "Leagues", icon: Globe, to: "/leagues" },
     { label: "Community", icon: Users, to: "#" },
 ];
 export default function MatchesNavbar() {

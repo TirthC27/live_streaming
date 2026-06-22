@@ -93,7 +93,7 @@ export default function HomePage() {
           <ShareBar />
           <AboutSection />
         </main>
-        <aside>
+        <aside id="trending-posts">
           <TrendingPosts />
         </aside>
       </div>

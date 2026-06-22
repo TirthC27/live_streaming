@@ -316,22 +316,42 @@ function Last5MatchesRow({ matches, onSelect: _onSelect, onViewAll }) {
           </button>)}
       </div>
       {matches.length === 0 ? (<p className="text-sm text-zinc-400">No recent target matches</p>) : (<div className="space-y-0 divide-y divide-zinc-800">
-          {matches.slice(0, 5).map((m) => (<div key={m.id} className="flex items-center justify-between py-3 rounded px-1 transition-colors gap-2">
-              {/* Home Team */}
-              <div className="flex items-center gap-2 w-1/3 min-w-0">
-                <img src={getLogo(m.homeCompetitor.id)} alt="" className="h-6 w-6 object-contain flex-shrink-0"/>
-                <span className="text-xs sm:text-sm text-zinc-300 truncate">{m.homeCompetitor.symbolicName || m.homeCompetitor.name}</span>
-              </div>
-              {/* Score Badge */}
-              <div className="flex justify-center flex-shrink-0">
-                <span className="rounded-md bg-zinc-800 px-2.5 py-1 text-xs sm:text-sm font-bold text-white whitespace-nowrap">
-                  {m.homeCompetitor.score} - {m.awayCompetitor.score}
-                </span>
-              </div>
-              {/* Away Team */}
-              <div className="flex items-center gap-2 w-1/3 min-w-0 justify-end">
-                <span className="text-xs sm:text-sm text-zinc-300 truncate text-right">{m.awayCompetitor.symbolicName || m.awayCompetitor.name}</span>
-                <img src={getLogo(m.awayCompetitor.id)} alt="" className="h-6 w-6 object-contain flex-shrink-0"/>
+          {matches.slice(0, 5).map((m) => (<div key={m.id} className="flex flex-col py-3 rounded px-1 transition-colors gap-2">
+              <div className="flex items-center justify-between gap-2">
+                  {/* Home Team */}
+                  <div className="flex flex-col gap-1 w-5/12 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <img src={getLogo(m.homeCompetitor.id)} alt="" className="h-6 w-6 object-contain flex-shrink-0"/>
+                      <span className="text-xs sm:text-sm text-zinc-300 truncate">{m.homeCompetitor.symbolicName || m.homeCompetitor.name}</span>
+                    </div>
+                    {m.homeScorers && m.homeScorers.length > 0 && (
+                      <div className="text-[10px] text-zinc-400 pl-8 flex flex-col gap-0.5">
+                        {m.homeScorers.map((s, idx) => (
+                          <span key={idx}>⚽ {s}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Score Badge */}
+                  <div className="flex flex-col items-center justify-center flex-shrink-0 w-2/12">
+                    <span className="rounded-md bg-zinc-800 px-2.5 py-1 text-xs sm:text-sm font-bold text-white whitespace-nowrap">
+                      {m.homeCompetitor.score} - {m.awayCompetitor.score}
+                    </span>
+                  </div>
+                  {/* Away Team */}
+                  <div className="flex flex-col gap-1 w-5/12 min-w-0 items-end">
+                    <div className="flex items-center gap-2 justify-end">
+                      <span className="text-xs sm:text-sm text-zinc-300 truncate text-right">{m.awayCompetitor.symbolicName || m.awayCompetitor.name}</span>
+                      <img src={getLogo(m.awayCompetitor.id)} alt="" className="h-6 w-6 object-contain flex-shrink-0"/>
+                    </div>
+                    {m.awayScorers && m.awayScorers.length > 0 && (
+                      <div className="text-[10px] text-zinc-400 pr-8 flex flex-col items-end gap-0.5">
+                        {m.awayScorers.map((s, idx) => (
+                          <span key={idx}>{s} ⚽</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
               </div>
             </div>))}
         </div>)}
@@ -665,10 +685,54 @@ export default function MatchesPage() {
 
                 const upcomingMatches = filterAndSort((upcomingData.games || []).filter((g) => g.shortStatusText === "NS" || g.statusText === "NS" || g.statusGroup === 2), compMapUp);
                 const finishedMatches = filterAndSort((finishedData.games || []).filter((g) => g.shortStatusText === "FT" || g.shortStatusText === "Ended" || g.statusText === "Ended" || g.statusGroup === 4), compMapFin);
+
+                // Fetch details for finished matches to get scorers in parallel
+                const finishedMatchesWithScorers = await Promise.all(
+                    finishedMatches.map(async (m, idx) => {
+                        if (idx >= 5) return m; // Limit to top 5 for performance
+                        try {
+                            const detailRes = await fetch(`https://webws.365scores.com/web/game/?appTypeId=5&langId=1&timezoneName=Asia%2FCalcutta&userCountryId=80&gameId=${m.id}`);
+                            if (detailRes.ok) {
+                                const detailData = await detailRes.json();
+                                const gameObj = detailData.game || {};
+                                const events = gameObj.events || [];
+                                const members = gameObj.members || [];
+                                
+                                const memberMap = new Map(members.map(mem => [mem.id, mem]));
+                                const goalEvents = events.filter(e => e.eventType && e.eventType.id === 1);
+                                
+                                const homeScorers = [];
+                                const awayScorers = [];
+                                
+                                goalEvents.forEach(evt => {
+                                    const scorer = memberMap.get(evt.playerId);
+                                    const scorerName = scorer ? scorer.shortName || scorer.name : "Goal";
+                                    const time = evt.gameTimeDisplay;
+                                    const goalStr = `${scorerName} ${time}`;
+                                    if (evt.competitorId === m.homeCompetitor.id) {
+                                        homeScorers.push(goalStr);
+                                    } else if (evt.competitorId === m.awayCompetitor.id) {
+                                        awayScorers.push(goalStr);
+                                    }
+                                });
+                                
+                                return {
+                                    ...m,
+                                    homeScorers,
+                                    awayScorers
+                                };
+                            }
+                        } catch (err) {
+                            console.error("Error fetching finished match details", m.id, err);
+                        }
+                        return { ...m, homeScorers: [], awayScorers: [] };
+                    })
+                );
+
                 const featuredMatches = filterAndSort(featuredData.games || [], compMapFeat);
                 setLive(liveMatchesWithScorers);
                 setUpcoming(upcomingMatches);
-                setFinished(finishedMatches);
+                setFinished(finishedMatchesWithScorers);
 
                 // Fetch YouTube highlights from the public matches/youtube-links endpoint
                 let serverLinks = [];

@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import Watch from './pages/Watch';
 import About from './pages/About';
 import Matches from './pages/Matches';
+import Leagues from './pages/Leagues';
 import CommunityPost from './pages/CommunityPost';
 import LiveStream from './pages/LiveStream';
 
@@ -42,6 +43,7 @@ function App() {
           <Route path="/watch" element={<Watch />} />
           <Route path="/watch/:streamId" element={<LiveStream />} />
           <Route path="/matches" element={<Matches />} />
+          <Route path="/leagues" element={<Leagues />} />
           <Route path="/community/post/:postId" element={<CommunityPost />} />
           <Route path="/about" element={<About />} />
         </Routes>
