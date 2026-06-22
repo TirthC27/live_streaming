@@ -39,37 +39,146 @@ app.get('/health', (req, res) => {
 
 // ===== Stream Proxy Routes =====
 
+const STREAM_HEADERS = {
+  'Referer': process.env.STREAM_REFERER || 'https://executeandship.com/',
+  'User-Agent': process.env.STREAM_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+};
+
+function isHttpUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch (e) {
+    return false;
+  }
+}
+
+function getFinalResponseUrl(response, fallbackUrl) {
+  return response?.request?.res?.responseUrl || response?.request?._redirectable?._currentUrl || fallbackUrl;
+}
+
+function urlsDiffer(a, b) {
+  if (!a || !b) return false;
+  return a.replace(/\/$/, '') !== b.replace(/\/$/, '');
+}
+
+function getProxyUrlForAsset(assetUrl, forcePlaylist = false) {
+  const lower = assetUrl.split('?')[0].toLowerCase();
+  const route = forcePlaylist || lower.endsWith('.m3u8') ? '/stream/playlist' : '/stream/segment';
+  return `${route}?url=${encodeURIComponent(assetUrl)}`;
+}
+
+function rewriteUriAttribute(line, baseUrl) {
+  return line.replace(/URI="([^"]+)"/g, (_match, uri) => {
+    try {
+      const absoluteUrl = new URL(uri, baseUrl).href;
+      const forcePlaylist = line.trim().startsWith('#EXT-X-MEDIA') || line.trim().startsWith('#EXT-X-I-FRAME-STREAM-INF');
+      return `URI="${getProxyUrlForAsset(absoluteUrl, forcePlaylist)}"`;
+    } catch (e) {
+      return `URI="${uri}"`;
+    }
+  });
+}
+
+function rewriteM3u8Content(m3u8Content, baseUrl) {
+  let nextUriIsPlaylist = false;
+
+  return m3u8Content.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (trimmed === '') return line;
+
+    if (trimmed.startsWith('#')) {
+      if (trimmed.includes('URI="')) {
+        return rewriteUriAttribute(line, baseUrl);
+      }
+      nextUriIsPlaylist = trimmed.startsWith('#EXT-X-STREAM-INF');
+      return line;
+    }
+
+    try {
+      const absoluteUrl = new URL(trimmed, baseUrl).href;
+      const rewrittenUrl = getProxyUrlForAsset(absoluteUrl, nextUriIsPlaylist);
+      nextUriIsPlaylist = false;
+      return rewrittenUrl;
+    } catch (e) {
+      nextUriIsPlaylist = false;
+      return line;
+    }
+  }).join('\n');
+}
+
+async function inspectStreamUrl(inputUrl) {
+  const trimmedUrl = (inputUrl || '').trim();
+
+  if (!isHttpUrl(trimmedUrl)) {
+    return {
+      inputUrl: trimmedUrl,
+      finalUrl: null,
+      redirected: false,
+      contentType: null,
+      isHls: false,
+      strategy: 'unsupported',
+      error: 'URL must be a valid http or https URL',
+    };
+  }
+
+  try {
+    const response = await axios.get(trimmedUrl, {
+      headers: STREAM_HEADERS,
+      responseType: 'text',
+      timeout: 10000,
+      maxRedirects: 5,
+      validateStatus: () => true,
+    });
+
+    const finalUrl = getFinalResponseUrl(response, trimmedUrl);
+    const contentType = response.headers['content-type'] || '';
+    const body = typeof response.data === 'string' ? response.data : '';
+    const isHls = response.status === 200 && (
+      body.includes('#EXTM3U') ||
+      contentType.includes('application/vnd.apple.mpegurl') ||
+      contentType.includes('application/x-mpegurl')
+    );
+    const redirected = urlsDiffer(trimmedUrl, finalUrl);
+
+    return {
+      inputUrl: trimmedUrl,
+      finalUrl,
+      redirected,
+      contentType,
+      isHls,
+      strategy: isHls ? (redirected ? 'redirected' : 'direct') : 'unsupported',
+      statusCode: response.status,
+      error: isHls ? null : `Upstream did not return a valid HLS manifest. Status: ${response.status}`,
+    };
+  } catch (error) {
+    return {
+      inputUrl: trimmedUrl,
+      finalUrl: null,
+      redirected: false,
+      contentType: null,
+      isHls: false,
+      strategy: 'unsupported',
+      statusCode: error.response?.status || null,
+      error: error.message,
+    };
+  }
+}
+
 /**
  * Shared helper: fetch a remote .m3u8 URL, rewrite all segment
  * paths to go through /stream/segment, and send the result.
  */
 async function proxyM3u8(sourceUrl, res) {
   const response = await axios.get(sourceUrl, {
-    headers: {
-      'Referer': 'https://executeandship.com/',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    },
+    headers: STREAM_HEADERS,
     responseType: 'text',
     timeout: 10000,
   });
 
   const m3u8Content = response.data;
-
-  // Rewrite every non-comment line to route through our segment proxy.
-  // Using new URL() handles absolute, relative, and root-relative paths correctly.
-  const rewrittenLines = m3u8Content.split('\n').map(line => {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('#') || trimmed === '') return line;
-
-    let absoluteUrl;
-    try {
-      absoluteUrl = new URL(trimmed, sourceUrl).href;
-    } catch (e) {
-      absoluteUrl = trimmed;
-    }
-
-    return `/stream/segment?url=${encodeURIComponent(absoluteUrl)}`;
-  });
+  const finalUrl = getFinalResponseUrl(response, sourceUrl);
+  const rewrittenContent = rewriteM3u8Content(m3u8Content, finalUrl);
 
   res.set({
     'Content-Type': 'application/vnd.apple.mpegurl',
@@ -79,7 +188,40 @@ async function proxyM3u8(sourceUrl, res) {
     'Access-Control-Allow-Origin': '*',
   });
 
-  res.send(rewrittenLines.join('\n'));
+  res.send(rewrittenContent);
+}
+
+function getCandidateStreamUrls(config, streamType) {
+  const isSecondary = streamType === 'secondary';
+  const originalUrl = isSecondary ? config.secondaryUrl : config.activeUrl;
+  const resolvedUrl = isSecondary ? config.secondaryResolvedUrl : config.activeResolvedUrl;
+  const strategy = isSecondary ? config.secondaryStreamStrategy : config.activeStreamStrategy;
+
+  const candidates = [];
+  if (strategy === 'redirected' && resolvedUrl) {
+    candidates.push(resolvedUrl);
+  }
+  if (originalUrl && !candidates.includes(originalUrl)) {
+    candidates.push(originalUrl);
+  }
+  return candidates;
+}
+
+async function proxyStreamWithFallback(config, streamType, res) {
+  const candidates = getCandidateStreamUrls(config, streamType);
+  let lastError;
+
+  for (const candidate of candidates) {
+    try {
+      await proxyM3u8(candidate, res);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.error(`Error fetching ${streamType} m3u8 candidate:`, error.message);
+    }
+  }
+
+  throw lastError || new Error(`No ${streamType} stream URL configured`);
 }
 
 // GET /stream/config — Public: returns stream labels so the client knows what to display
@@ -106,13 +248,12 @@ app.get('/stream/config', async (req, res) => {
 app.get('/stream/index.m3u8', async (req, res) => {
   try {
     const config = await streamService.getStreamConfig();
-    const currentStreamUrl = config.activeUrl;
 
-    if (!currentStreamUrl) {
+    if (!config.activeUrl) {
       return res.status(500).json({ error: 'Primary stream URL not configured in database' });
     }
 
-    await proxyM3u8(currentStreamUrl, res);
+    await proxyStreamWithFallback(config, 'primary', res);
   } catch (error) {
     console.error('Error fetching primary m3u8:', error.message);
     res.status(502).json({ error: 'Failed to fetch primary stream manifest', details: error.message });
@@ -123,16 +264,30 @@ app.get('/stream/index.m3u8', async (req, res) => {
 app.get('/stream/secondary.m3u8', async (req, res) => {
   try {
     const config = await streamService.getStreamConfig();
-    const secondaryStreamUrl = config.secondaryUrl;
 
-    if (!secondaryStreamUrl) {
+    if (!config.secondaryUrl) {
       return res.status(404).json({ error: 'Secondary stream URL not configured in database' });
     }
 
-    await proxyM3u8(secondaryStreamUrl, res);
+    await proxyStreamWithFallback(config, 'secondary', res);
   } catch (error) {
     console.error('Error fetching secondary m3u8:', error.message);
     res.status(502).json({ error: 'Failed to fetch secondary stream manifest', details: error.message });
+  }
+});
+
+// GET /stream/playlist?url=ENCODED_PLAYLIST_URL
+app.get('/stream/playlist', async (req, res) => {
+  try {
+    const playlistUrl = req.query.url;
+    if (!playlistUrl) {
+      return res.status(400).json({ error: 'Missing url parameter' });
+    }
+
+    await proxyM3u8(decodeURIComponent(playlistUrl), res);
+  } catch (error) {
+    console.error('Error fetching playlist:', error.message);
+    res.status(502).json({ error: 'Failed to fetch stream playlist', details: error.message });
   }
 });
 
@@ -147,10 +302,7 @@ app.get('/stream/segment', async (req, res) => {
     const decodedUrl = decodeURIComponent(segmentUrl);
 
     const response = await axios.get(decodedUrl, {
-      headers: {
-        'Referer': 'https://executeandship.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
+      headers: STREAM_HEADERS,
       responseType: 'stream',
       timeout: 15000
     });
@@ -197,12 +349,13 @@ app.post('/admin/update-active-url', async (req, res) => {
       return res.status(400).json({ error: 'URL is required', success: false });
     }
 
-    if (!url.includes('.m3u8')) {
-      return res.status(400).json({ error: 'URL must be a valid .m3u8 stream URL', success: false });
+    if (!isHttpUrl(url.trim())) {
+      return res.status(400).json({ error: 'URL must be a valid http or https stream URL', success: false });
     }
 
-    const updatedConfig = await streamService.updateActiveUrl(url.trim(), label || 'Main Stream');
-    res.json({ success: true, updatedConfig });
+    const inspection = await inspectStreamUrl(url);
+    const updatedConfig = await streamService.updateActiveUrl(url.trim(), label || 'Main Stream', inspection);
+    res.json({ success: true, updatedConfig, inspection });
   } catch (error) {
     console.error('Error updating active URL:', error.message);
     res.status(500).json({ error: 'Failed to update active URL', success: false });
@@ -224,12 +377,13 @@ app.post('/admin/update-secondary-url', async (req, res) => {
       return res.status(400).json({ error: 'URL is required', success: false });
     }
 
-    if (!url.includes('.m3u8')) {
-      return res.status(400).json({ error: 'URL must be a valid .m3u8 stream URL', success: false });
+    if (!isHttpUrl(url.trim())) {
+      return res.status(400).json({ error: 'URL must be a valid http or https stream URL', success: false });
     }
 
-    const updatedConfig = await streamService.updateSecondaryUrl(url.trim(), label || 'Backup Stream');
-    res.json({ success: true, updatedConfig });
+    const inspection = await inspectStreamUrl(url);
+    const updatedConfig = await streamService.updateSecondaryUrl(url.trim(), label || 'Backup Stream', inspection);
+    res.json({ success: true, updatedConfig, inspection });
   } catch (error) {
     console.error('Error updating secondary URL:', error.message);
     res.status(500).json({ error: 'Failed to update secondary URL', success: false });
@@ -247,22 +401,26 @@ app.post('/admin/update-both-urls', async (req, res) => {
     }
 
     // Validate active URL
-    if (!activeUrl || !activeUrl.includes('.m3u8')) {
-      return res.status(400).json({ error: 'Active URL must be a valid .m3u8 stream URL', success: false });
+    if (!activeUrl || !isHttpUrl(activeUrl.trim())) {
+      return res.status(400).json({ error: 'Active URL must be a valid http or https stream URL', success: false });
     }
 
     // Validate secondary URL
-    if (!secondaryUrl || !secondaryUrl.includes('.m3u8')) {
-      return res.status(400).json({ error: 'Secondary URL must be a valid .m3u8 stream URL', success: false });
+    if (!secondaryUrl || !isHttpUrl(secondaryUrl.trim())) {
+      return res.status(400).json({ error: 'Secondary URL must be a valid http or https stream URL', success: false });
     }
 
+    const activeInspection = await inspectStreamUrl(activeUrl);
+    const secondaryInspection = await inspectStreamUrl(secondaryUrl);
     const updatedConfig = await streamService.updateBothUrls(
       activeUrl.trim(),
       secondaryUrl.trim(),
       activeLabel || 'Main Stream',
-      secondaryLabel || 'Backup Stream'
+      secondaryLabel || 'Backup Stream',
+      activeInspection,
+      secondaryInspection
     );
-    res.json({ success: true, updatedConfig });
+    res.json({ success: true, updatedConfig, inspection: { active: activeInspection, secondary: secondaryInspection } });
   } catch (error) {
     console.error('Error updating both URLs:', error.message);
     res.status(500).json({ error: 'Failed to update both URLs', success: false });
@@ -288,31 +446,47 @@ app.get('/admin/check-status', requireAdmin, async (req, res) => {
       return res.json({ status: 'offline', error: 'No stream URL configured' });
     }
 
-    const response = await axios.get(streamUrl, {
-      headers: {
-        'Referer': 'https://executeandship.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      responseType: 'text',
-      timeout: 5000
-    });
+    const inspection = await inspectStreamUrl(streamUrl);
 
-    if (response.status === 200) {
-      res.json({
-        status: 'live',
-        url: streamUrl
-      });
-    } else {
-      res.json({
-        status: 'offline',
-        error: `Unexpected status code: ${response.status}`
-      });
-    }
+    res.json({
+      status: inspection.isHls ? 'live' : 'offline',
+      url: streamUrl,
+      inspection,
+    });
   } catch (error) {
     res.json({
       status: 'offline',
       error: error.message
     });
+  }
+});
+
+// POST /admin/recheck-stream-url â€” Refresh stored resolved URL metadata
+app.post('/admin/recheck-stream-url', async (req, res) => {
+  try {
+    const { secret, stream = 'active' } = req.body;
+
+    if (!secret || secret !== process.env.ADMIN_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized', success: false });
+    }
+
+    const config = await streamService.getStreamConfig();
+    const target = stream === 'secondary' ? 'secondary' : 'active';
+    const streamUrl = target === 'secondary' ? config.secondaryUrl : config.activeUrl;
+
+    if (!streamUrl) {
+      return res.status(404).json({ error: `${target} stream URL not configured`, success: false });
+    }
+
+    const inspection = await inspectStreamUrl(streamUrl);
+    const updatedConfig = target === 'secondary'
+      ? await streamService.updateSecondaryInspection(inspection)
+      : await streamService.updateActiveInspection(inspection);
+
+    res.json({ success: true, stream: target, updatedConfig, inspection });
+  } catch (error) {
+    console.error('Error rechecking stream URL:', error.message);
+    res.status(500).json({ error: 'Failed to recheck stream URL', success: false });
   }
 });
 

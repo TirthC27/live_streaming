@@ -16,9 +16,28 @@ CREATE TABLE stream_config (
   secondary_url_label TEXT DEFAULT 'Backup Stream',
   active_url_updated_at TIMESTAMPTZ DEFAULT now(),
   secondary_url_updated_at TIMESTAMPTZ,
+  active_resolved_url TEXT,
+  active_stream_strategy TEXT DEFAULT 'direct',
+  active_last_checked_at TIMESTAMPTZ,
+  active_last_check_status TEXT,
+  secondary_resolved_url TEXT,
+  secondary_stream_strategy TEXT DEFAULT 'direct',
+  secondary_last_checked_at TIMESTAMPTZ,
+  secondary_last_check_status TEXT,
   updated_by TEXT DEFAULT 'admin',
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Existing databases can run this block safely to add resolved URL metadata.
+ALTER TABLE stream_config
+  ADD COLUMN IF NOT EXISTS active_resolved_url TEXT,
+  ADD COLUMN IF NOT EXISTS active_stream_strategy TEXT DEFAULT 'direct',
+  ADD COLUMN IF NOT EXISTS active_last_checked_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS active_last_check_status TEXT,
+  ADD COLUMN IF NOT EXISTS secondary_resolved_url TEXT,
+  ADD COLUMN IF NOT EXISTS secondary_stream_strategy TEXT DEFAULT 'direct',
+  ADD COLUMN IF NOT EXISTS secondary_last_checked_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS secondary_last_check_status TEXT;
 
 -- Insert default row (only ever 1 row)
 INSERT INTO stream_config (
