@@ -13,6 +13,14 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const secret = req.headers['x-proxy-secret'];
+  if (secret !== process.env.PROXY_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+});
+
 // ===== Auth Middleware =====
 function requireAdmin(req, res, next) {
   const secret = req.headers['x-admin-secret'];
