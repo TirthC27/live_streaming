@@ -1,6 +1,7 @@
 import Hero from "../components/Hero";
 import TrendingPosts from "../components/TrendingPosts";
 import { TelegramLogo, XLogo, RedditLogo, DiscordLogo, ShareNetwork, } from "@phosphor-icons/react";
+import { Link } from "react-router-dom";
 function ShareBar() {
     return (<div className="flex flex-col gap-6">
       {/* Top row: Avatar + Text + Shares */}
@@ -26,10 +27,10 @@ function ShareBar() {
             { icon: RedditLogo, label: "Share", bg: "bg-blue-700" },
             { icon: DiscordLogo, label: "Share", bg: "bg-red-600" },
             { icon: ShareNetwork, label: "", bg: "bg-lime-500" },
-        ].map(({ icon: Icon, label, bg }, i) => (<button key={i} className={`flex items-center gap-2 rounded-full ${bg} px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 active:scale-[0.97]`}>
+        ].map(({ icon: Icon, label, bg }, i) => (<Link key={i} to="/upcoming" className={`flex items-center gap-2 rounded-full ${bg} px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 active:scale-[0.97]`}>
             <Icon size={20} weight="fill"/>
             {label}
-          </button>))}
+          </Link>))}
       </div>
     </div>);
 }

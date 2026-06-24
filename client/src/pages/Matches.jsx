@@ -568,10 +568,10 @@ function ShareBar() {
             { icon: RedditLogo, label: "Share", bg: "bg-blue-700" },
             { icon: DiscordLogo, label: "Share", bg: "bg-red-600" },
             { icon: ShareNetwork, label: "", bg: "bg-lime-500" },
-        ].map(({ icon: Icon, label, bg }, i) => (<button key={i} className={`flex items-center gap-2 rounded-full ${bg} px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 active:scale-[0.97]`}>
+        ].map(({ icon: Icon, label, bg }, i) => (<Link key={i} to="/upcoming" className={`flex items-center gap-2 rounded-full ${bg} px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 active:scale-[0.97]`}>
               <Icon size={20} weight="fill"/>
               {label}
-            </button>))}
+            </Link>))}
         </div>
       </div>
     </div>);
