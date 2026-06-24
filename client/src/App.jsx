@@ -10,6 +10,7 @@ import Matches from './pages/Matches';
 import Leagues from './pages/Leagues';
 import CommunityPost from './pages/CommunityPost';
 import LiveStream from './pages/LiveStream';
+import ComingSoon from './pages/ComingSoon';
 
 function NavbarManager() {
   const location = useLocation();
@@ -46,6 +47,7 @@ function App() {
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/community/post/:postId" element={<CommunityPost />} />
           <Route path="/about" element={<About />} />
+          <Route path="/upcoming" element={<ComingSoon />} />
         </Routes>
       </main>
       <footer className="border-t border-white/5 py-8 text-center text-xs text-zinc-600">

@@ -112,9 +112,14 @@ async function fetchAndCacheYoutubeData() {
       (game) => game && game.competitionId && TARGET_COMPETITIONS.has(game.competitionId)
     );
 
-    const sortedMatches = filteredMatches.sort(
-      (a, b) => getCompetitionPreference(a.competitionId) - getCompetitionPreference(b.competitionId)
-    );
+    const sortedMatches = filteredMatches.sort((a, b) => {
+      const prefA = getCompetitionPreference(a.competitionId);
+      const prefB = getCompetitionPreference(b.competitionId);
+      if (prefA !== prefB) {
+        return prefA - prefB;
+      }
+      return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+    });
 
     const topMatches = sortedMatches.slice(0, 5);
 

@@ -2,9 +2,9 @@ import { Link, useSearchParams, useNavigate, useLocation } from "react-router-do
 import { MagnifyingGlass, List, SoccerBall, DiscordLogo, TelegramLogo, RedditLogo, XLogo, Heart, Globe, Users, SignIn, } from "@phosphor-icons/react";
 import { useState } from "react";
 const NAV_ITEMS = [
-    { label: "Favourites", icon: Heart, to: "#" },
+    { label: "Favourites", icon: Heart, to: "/upcoming" },
     { label: "Leagues", icon: Globe, to: "/leagues" },
-    { label: "Community", icon: Users, to: "#" },
+    { label: "Community", icon: Users, to: "/upcoming" },
 ];
 export default function MatchesNavbar() {
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -56,9 +56,11 @@ export default function MatchesNavbar() {
             { icon: TelegramLogo, color: "bg-sky-500" },
             { icon: RedditLogo, color: "bg-orange-600" },
             { icon: XLogo, color: "bg-zinc-700" },
-        ].map(({ icon: Icon, color }, i) => (<button key={i} className={`flex h-8 w-8 items-center justify-center rounded-full ${color} text-white transition-opacity hover:opacity-80`}>
+        ].map(({ icon: Icon, color }, i) => (
+          <Link key={i} to="/upcoming" className={`flex h-8 w-8 items-center justify-center rounded-full ${color} text-white transition-opacity hover:opacity-80`}>
               <Icon size={16} weight="fill"/>
-            </button>))}
+          </Link>
+        ))}
         </div>
 
         {/* Nav items */}
@@ -70,7 +72,7 @@ export default function MatchesNavbar() {
         </nav>
 
         {/* Login */}
-        <Link to="#" className="ml-4 hidden md:flex items-center gap-2 rounded-lg bg-pink-300 px-5 py-2 text-sm font-semibold text-black transition-colors hover:bg-pink-400">
+        <Link to="/upcoming" className="ml-4 hidden md:flex items-center gap-2 rounded-lg bg-pink-300 px-5 py-2 text-sm font-semibold text-black transition-colors hover:bg-pink-400">
           <SignIn size={16} weight="bold"/>
           Login
         </Link>
@@ -87,7 +89,7 @@ export default function MatchesNavbar() {
           {NAV_ITEMS.map(({ label, to }) => (<Link key={label} to={to} className="block rounded-lg px-4 py-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/5 hover:text-white" onClick={() => setMobileOpen(false)}>
               {label}
             </Link>))}
-          <Link to="#" className="mt-2 block rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-semibold text-white" onClick={() => setMobileOpen(false)}>
+          <Link to="/upcoming" className="mt-2 block rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-semibold text-white" onClick={() => setMobileOpen(false)}>
             Login
           </Link>
         </nav>)}

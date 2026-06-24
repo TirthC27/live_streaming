@@ -553,7 +553,7 @@ function WorldCupLeagueCard({ league, onViewAllTable, onUpcomingMatches, onPrevi
     }, [league.id]);
 
     return (
-        <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5 md:col-span-2 flex flex-col justify-between space-y-4">
+        <div className="rounded-xl border border-white/5 bg-[#1b1843] p-5 md:col-span-2 flex flex-col justify-between space-y-4 w-full min-w-0 overflow-hidden">
             {/* Header with Tabs */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-white/5">
                 <div className="flex items-center gap-3">

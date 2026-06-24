@@ -368,9 +368,6 @@ function TopHighlights({ highlights }) {
               <div className="relative overflow-hidden rounded-lg">
                 <img src={h.thumbnail} alt={h.title} className="aspect-video w-full object-cover transition-transform group-hover:scale-105"/>
                 <div className="absolute inset-0 bg-black/30 transition-opacity group-hover:bg-black/10"/>
-                <span className="absolute bottom-1.5 left-1.5 rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
-                  {h.duration}
-                </span>
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
                   <Play size={28} weight="fill" className="text-white drop-shadow-lg"/>
                 </div>
@@ -683,8 +680,10 @@ export default function MatchesPage() {
                     })
                 );
 
-                const upcomingMatches = filterAndSort((upcomingData.games || []).filter((g) => g.shortStatusText === "NS" || g.statusText === "NS" || g.statusGroup === 2), compMapUp);
-                const finishedMatches = filterAndSort((finishedData.games || []).filter((g) => g.shortStatusText === "FT" || g.shortStatusText === "Ended" || g.statusText === "Ended" || g.statusGroup === 4), compMapFin);
+                 const upcomingMatches = filterAndSort((upcomingData.games || []).filter((g) => g.shortStatusText === "NS" || g.statusText === "NS" || g.statusGroup === 2), compMapUp)
+                    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+                const finishedMatches = filterAndSort((finishedData.games || []).filter((g) => g.shortStatusText === "FT" || g.shortStatusText === "Ended" || g.statusText === "Ended" || g.statusGroup === 4), compMapFin)
+                    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 
                 // Fetch details for finished matches to get scorers in parallel
                 const finishedMatchesWithScorers = await Promise.all(
@@ -882,7 +881,7 @@ export default function MatchesPage() {
         }}>
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 py-8">
         {/* Page header */}
-        <div className="mb-8 flex items-center justify-end">
+        <div className="mb-8 hidden sm:flex items-center justify-end">
           <Link to="/" className="text-sm text-zinc-500 transition-colors hover:text-accent">
             &larr; Back to Home
           </Link>
