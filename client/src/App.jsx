@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { useEffect } from 'react';
 import FootyNavbar from './components/FootyNavbar';
 import MatchesNavbar from './components/MatchesNavbar';
@@ -53,6 +54,7 @@ function App() {
       <footer className="border-t border-white/5 py-8 text-center text-xs text-zinc-600">
         <p>HiFootball &copy; {new Date().getFullYear()}. For educational purposes only.</p>
       </footer>
+      <Analytics />
     </div>
   );
 }
