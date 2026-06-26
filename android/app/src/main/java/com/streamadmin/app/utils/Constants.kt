@@ -3,7 +3,7 @@ package com.streamadmin.app.utils
 object Constants {
     const val ADMIN_USERNAME = "streamadmin"
     const val ADMIN_PASSWORD = "StreamX@2024"
-    const val BACKEND_URL = "https://streamx-server-286096169961.us-central1.run.app"
+    const val BACKEND_URL = "https://api.hifootball.dpdns.org"
     const val ADMIN_SECRET = "StreamXAdmin@2024#Secret"
     const val PREF_NAME = "StreamAdminPrefs"
     const val PREF_IS_LOGGED_IN = "isLoggedIn"
