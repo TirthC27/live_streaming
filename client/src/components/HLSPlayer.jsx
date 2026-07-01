@@ -3,46 +3,40 @@ import Hls from 'hls.js';
 import LoadingSpinner from './LoadingSpinner';
 import OfflineScreen from './OfflineScreen';
 
-function HLSPlayer() {
+/**
+ * HLSPlayer — channel-aware HLS player with ABR quality selector.
+ * @param {string} channelKey - channel identifier (e.g. 'channel1')
+ * @param {string} [streamUrl] - optional override URL (e.g. for transcoded streams)
+ */
+function HLSPlayer({ channelKey, streamUrl: streamUrlOverride }) {
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
-  // 'primary' | 'secondary'
-  const [activeStream, setActiveStream] = useState('primary');
-  const [streamConfig, setStreamConfig] = useState({
-    primary: { label: 'Main Stream', available: true },
-    secondary: { label: 'Backup Stream', available: false },
-  });
+  // ABR quality state
+  const [levels, setLevels] = useState([]);
+  const [currentLevel, setCurrentLevel] = useState(-1); // -1 = Auto
+  const [selectedLevel, setSelectedLevel] = useState(-1);
+  const [bandwidth, setBandwidth] = useState(0);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
 
   const proxyBase = process.env.REACT_APP_PROXY_URL;
+  const url = streamUrlOverride || `${proxyBase}/stream/${channelKey}/index.m3u8`;
 
-  const streamUrls = {
-    primary: `${proxyBase}/stream/index.m3u8`,
-    secondary: `${proxyBase}/stream/secondary.m3u8`,
-  };
-
-  // Fetch stream config from the server (stream labels + availability)
-  useEffect(() => {
-    fetch(`${proxyBase}/stream/config`)
-      .then(r => r.json())
-      .then(data => setStreamConfig(data))
-      .catch(() => {/* keep defaults */});
-  }, [proxyBase]);
-
-  const initPlayer = useCallback((streamKey) => {
+  const initPlayer = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    const streamUrl = streamUrls[streamKey];
 
     setIsLoading(true);
     setIsOffline(false);
     setIsLive(false);
+    setLevels([]);
+    setCurrentLevel(-1);
+    setSelectedLevel(-1);
+    setBandwidth(0);
 
-    // Destroy existing instance
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
@@ -50,29 +44,54 @@ function HLSPlayer() {
 
     if (Hls.isSupported()) {
       const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 90,
+        autoStartLoad: true,
+        startLevel: -1,
+        abrEwmaDefaultEstimate: 500000,
+        abrBandWidthFactor: 0.95,
+        abrBandWidthUpFactor: 0.7,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
-        startLevel: -1,
+        lowLatencyMode: false,
+        enableWorker: true,
         fragLoadingTimeOut: 20000,
         manifestLoadingTimeOut: 20000,
         levelLoadingTimeOut: 20000,
       });
 
-      hls.loadSource(streamUrl);
+      hls.loadSource(url);
       hls.attachMedia(video);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
         setIsLive(true);
         setIsLoading(false);
-        video.play().catch(() => {
-          // Autoplay blocked, user will need to click play
-        });
+
+        // Collect quality levels
+        if (data.levels && data.levels.length > 0) {
+          const lvls = data.levels.map((level, index) => ({
+            index,
+            height: level.height,
+            width: level.width,
+            bitrate: level.bitrate,
+            label: level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)}k`,
+          }));
+          setLevels(lvls);
+        }
+
+        video.play().catch(() => {});
       });
 
-      hls.on(Hls.Events.ERROR, (event, data) => {
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+        setCurrentLevel(data.level);
+      });
+
+      hls.on(Hls.Events.FRAG_BUFFERED, (_event, data) => {
+        if (data.stats && data.stats.loaded && data.stats.loading) {
+          const bw = Math.round((data.stats.loaded * 8) / (data.stats.loading.end - data.stats.loading.start) * 1000);
+          if (bw > 0) setBandwidth(bw);
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
@@ -98,8 +117,8 @@ function HLSPlayer() {
 
       hlsRef.current = hls;
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari native HLS support
-      video.src = streamUrl;
+      // Safari native HLS
+      video.src = url;
       video.addEventListener('loadedmetadata', () => {
         setIsLive(true);
         setIsLoading(false);
@@ -114,18 +133,17 @@ function HLSPlayer() {
       setIsOffline(true);
       setIsLoading(false);
     }
-  }, [proxyBase]);
+  }, [url]);
 
   useEffect(() => {
-    initPlayer(activeStream);
-
+    initPlayer();
     return () => {
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
     };
-  }, [activeStream]);
+  }, [initPlayer]);
 
   const handleRetry = useCallback(() => {
     if (hlsRef.current) {
@@ -134,21 +152,31 @@ function HLSPlayer() {
     }
     setIsLoading(true);
     setIsOffline(false);
-    setTimeout(() => {
-      initPlayer(activeStream);
-    }, 3000);
-  }, [initPlayer, activeStream]);
+    setTimeout(() => initPlayer(), 3000);
+  }, [initPlayer]);
 
-  const switchStream = useCallback((key) => {
-    if (key === activeStream) return;
-    setActiveStream(key);
-  }, [activeStream]);
+  const handleQualityChange = useCallback((levelIndex) => {
+    if (!hlsRef.current) return;
+    hlsRef.current.currentLevel = levelIndex;
+    setSelectedLevel(levelIndex);
+    setShowQualityMenu(false);
+  }, []);
+
+  const formatBandwidth = (bw) => {
+    if (bw >= 1000000) return `${(bw / 1000000).toFixed(1)} Mbps`;
+    if (bw >= 1000) return `${Math.round(bw / 1000)} Kbps`;
+    return `${bw} bps`;
+  };
 
   if (isOffline) {
     return <OfflineScreen onRetry={handleRetry} />;
   }
 
-  const hasSecondary = streamConfig?.secondary?.available;
+  const activeLabel = levels.length > 0
+    ? (selectedLevel === -1
+      ? `Auto${currentLevel >= 0 && levels[currentLevel] ? ` (${levels[currentLevel].label})` : ''}`
+      : levels[selectedLevel]?.label || 'Unknown')
+    : 'Auto';
 
   return (
     <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl shadow-black/50 ring-1 ring-border/30">
@@ -170,36 +198,67 @@ function HLSPlayer() {
       {/* Live indicator overlay */}
       {isLive && (
         <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-lg">
-          <span className="w-2 h-2 bg-accent rounded-full animate-pulse-live" />
+          <span className="w-2 h-2 bg-[#e50914] rounded-full animate-pulse" />
           <span className="text-xs font-bold text-white tracking-wider uppercase">Live</span>
         </div>
       )}
 
-      {/* Stream switcher — shown only when secondary stream is configured */}
-      {hasSecondary && (
-        <div className="absolute top-4 right-4 z-10 flex items-center gap-1 p-1 bg-black/70 backdrop-blur-sm rounded-xl border border-white/10">
+      {/* Quality selector overlay */}
+      {isLive && levels.length > 1 && (
+        <div className="absolute top-4 right-4 z-20">
           <button
-            id="stream-switcher-primary"
-            onClick={() => switchStream('primary')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-              activeStream === 'primary'
-                ? 'bg-accent text-white shadow-md'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-            }`}
+            onClick={() => setShowQualityMenu((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10 text-xs font-semibold text-white hover:bg-black/80 transition-all"
           >
-            {streamConfig.primary.label}
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {activeLabel}
           </button>
-          <button
-            id="stream-switcher-secondary"
-            onClick={() => switchStream('secondary')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-              activeStream === 'secondary'
-                ? 'bg-accent text-white shadow-md'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            {streamConfig.secondary.label}
-          </button>
+
+          {showQualityMenu && (
+            <div className="absolute top-full right-0 mt-1 w-48 bg-black/90 backdrop-blur-md rounded-lg border border-white/10 overflow-hidden shadow-xl">
+              {/* Bandwidth indicator */}
+              {bandwidth > 0 && (
+                <div className="px-3 py-2 text-[10px] text-zinc-500 border-b border-white/5">
+                  Bandwidth: {formatBandwidth(bandwidth)}
+                </div>
+              )}
+
+              {/* Auto option */}
+              <button
+                onClick={() => handleQualityChange(-1)}
+                className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+                  selectedLevel === -1
+                    ? 'bg-[#e50914]/20 text-[#e50914] font-bold'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                Auto {currentLevel >= 0 && levels[currentLevel] ? `(${levels[currentLevel].label})` : ''}
+              </button>
+
+              {/* Quality levels */}
+              {levels
+                .sort((a, b) => b.height - a.height)
+                .map((level) => (
+                  <button
+                    key={level.index}
+                    onClick={() => handleQualityChange(level.index)}
+                    className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+                      selectedLevel === level.index
+                        ? 'bg-[#e50914]/20 text-[#e50914] font-bold'
+                        : 'text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {level.label}
+                    <span className="text-zinc-500 ml-2">
+                      {Math.round(level.bitrate / 1000)}k
+                    </span>
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
       )}
     </div>

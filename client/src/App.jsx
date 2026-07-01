@@ -42,7 +42,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/watch" element={<Watch />} />
-          <Route path="/watch/:streamId" element={<LiveStream />} />
+          <Route path="/watch/:channelKey" element={<LiveStream />} />
           <Route path="/matches" element={<Matches />} />
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/community/post/:postId" element={<CommunityPost />} />
