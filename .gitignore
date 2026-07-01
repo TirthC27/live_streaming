@@ -1,43 +1,32 @@
 # Dependencies
 node_modules/
-*/node_modules/
+
+# Environment files
 .env
-# Build output
+.env.local
+
+# Build outputs
 client/build/
-
-# Runtime state
-server/stream-url.json
-
-# Android build
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/.idea/
-*.apk
-*.aab
-
-# Environment files (contain secrets)
-.env
-server/.env
-client/.env
+server/dist/
 
 # OS files
 .DS_Store
 Thumbs.db
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
-*.swo
+
+# Android build
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+
+# Transcoding temp files
+/tmp/streamx-transcode/
 
 # Logs
 *.log
 npm-debug.log*
-
-# Coverage
-coverage/
-
-# Misc
-.cache/

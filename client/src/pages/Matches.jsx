@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Play, Clock, Trophy, TelegramLogo, XLogo, RedditLogo, DiscordLogo, ShareNetwork, X, } from "@phosphor-icons/react";
+import MatchCard from "../components/MatchCard";
 const PROXY_URL = process.env.REACT_APP_PROXY_URL || "http://localhost:4000";
 // 365Scores competitor image helper
 const getLogo = (id) => `https://imagecache.365scores.com/image/upload/f_auto,w_48,h_48,c_limit,q_auto:eco,d_Competitors:default1.png/Competitors/${id}`;
@@ -583,10 +584,35 @@ export default function MatchesPage() {
     const [finished, setFinished] = useState([]);
     const [featured, setFeatured] = useState(null);
     const [highlights, setHighlights] = useState([]);
+    // Scheduled matches from our backend
+    const [scheduledLive, setScheduledLive] = useState([]);
+    const [scheduledUpcoming, setScheduledUpcoming] = useState([]);
     // Modals state
     const [selectedMatch, setSelectedMatch] = useState(null);
     const [activeListModal, setActiveListModal] = useState(null);
     const [loading, setLoading] = useState(true);
+    // Fetch scheduled matches from StreamX backend
+    useEffect(() => {
+        async function fetchScheduled() {
+            try {
+                const [liveRes, upRes] = await Promise.all([
+                    fetch(`${PROXY_URL}/matches/live`),
+                    fetch(`${PROXY_URL}/matches/upcoming`),
+                ]);
+                if (liveRes.ok) {
+                    const liveData = await liveRes.json();
+                    setScheduledLive(Array.isArray(liveData) ? liveData : []);
+                }
+                if (upRes.ok) {
+                    const upData = await upRes.json();
+                    setScheduledUpcoming(Array.isArray(upData) ? upData : []);
+                }
+            } catch (err) {
+                console.error("Failed to fetch scheduled matches:", err);
+            }
+        }
+        fetchScheduled();
+    }, []);
     useEffect(() => {
         async function loadData() {
             try {
@@ -886,6 +912,36 @@ export default function MatchesPage() {
             &larr; Back to Home
           </Link>
         </div>
+
+        {/* ── LIVE NOW ── */}
+        {scheduledLive.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+              <h2 className="text-lg font-bold text-white uppercase tracking-wider">Live Now</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scheduledLive.map((m) => (
+                <MatchCard key={m.id} match={m} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── UPCOMING MATCHES ── */}
+        {scheduledUpcoming.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock size={18} weight="bold" className="text-amber-400" />
+              <h2 className="text-lg font-bold text-white uppercase tracking-wider">Upcoming Matches</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scheduledUpcoming.map((m) => (
+                <MatchCard key={m.id} match={m} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (<div className="flex h-96 items-center justify-center text-white">
             <div className="flex flex-col items-center gap-2">
