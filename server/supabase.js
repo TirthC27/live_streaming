@@ -13,6 +13,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     autoRefreshToken: false,
     persistSession: false,
   },
+  realtime: {
+    autoConnect: false,
+  },
 });
 
 console.log('✅ Supabase client initialized');
