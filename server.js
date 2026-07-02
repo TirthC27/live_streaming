@@ -9,8 +9,8 @@ const server = http.createServer(app);
 const io = socketIo(server);
 
 // ─── API Keys ────────────────────────────────────────────────────────────────
-const FOOTBALL_API_KEY = '8e468caf610e4f868c7bd7855cd3ec8e';
-const YOUTUBE_API_KEY  = 'AIzaSyDeotyUMmIVBim3Ejbo1Ge1NS_Kb16kecQ';
+const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY;
+const YOUTUBE_API_KEY  = process.env.YOUTUBE_API_KEY;
 
 // ─── Football Data API Proxy ─────────────────────────────────────────────────
 const footballApi = axios.create({
@@ -132,7 +132,7 @@ app.get('/live/:streamName.flv', (req, res) => {
 const STREAM_SOURCES = {
     'stream': 'https://streamcrichd.com/update/fetch.php?hd=39&embed=1',
 };
-const CIPHER_KEY = 'G0alStr3am_X7k9Pq2vL8mN4wR';
+const CIPHER_KEY = process.env.CIPHER_KEY;
 
 function xorEncrypt(text, key) {
     let result = '';

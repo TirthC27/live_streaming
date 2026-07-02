@@ -13,7 +13,7 @@ const youtubeService = require('./services/youtubeService');
 const requireAdmin = require('./middleware/adminAuth');
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 8080;
 
 // ─── Middleware ───────────────────────────────────────────────
 
@@ -111,6 +111,8 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'StreamX Proxy Server Running' });
 });
 
+app.get('/ping', (req, res) => res.status(200).send('OK'));
+
 app.get('/health', async (req, res) => {
   try {
     const channels = await channelService.getAllChannels();
@@ -146,7 +148,7 @@ app.get('/stream/:channelKey/index.m3u8', async (req, res) => {
   try {
     await hlsProxyService.proxyM3u8(req.params.channelKey, req, res);
   } catch (error) {
-    console.error('Error in stream proxy:', error.message);
+    console.error('Error in stream proxy:', error.stack || error);
     if (!res.headersSent) {
       res.status(502).json({ error: 'Failed to fetch stream manifest', details: error.message });
     }
@@ -160,7 +162,7 @@ app.get('/stream/:channelKey/variant', async (req, res) => {
     if (!variantUrl) return res.status(400).json({ error: 'Missing url parameter' });
     await hlsProxyService.proxyVariantPlaylist(req.params.channelKey, variantUrl, req, res);
   } catch (error) {
-    console.error('Error in variant proxy:', error.message);
+    console.error('Error in variant proxy:', error.stack || error);
     if (!res.headersSent) {
       res.status(502).json({ error: 'Failed to fetch variant playlist', details: error.message });
     }
@@ -174,7 +176,7 @@ app.get('/stream/:channelKey/segment', async (req, res) => {
     if (!segmentUrl) return res.status(400).json({ error: 'Missing url parameter' });
     await hlsProxyService.proxySegment(req.params.channelKey, segmentUrl, req, res);
   } catch (error) {
-    console.error('Error in segment proxy:', error.message);
+    console.error('Error in segment proxy:', error.stack || error);
     if (!res.headersSent) {
       res.status(502).json({ error: 'Failed to fetch segment', details: error.message });
     }
@@ -256,7 +258,7 @@ app.get('/channels', async (req, res) => {
 
     res.json(enriched);
   } catch (error) {
-    console.error('Error fetching channels:', error.message);
+    console.error('Error fetching channels:', error.stack || error);
     res.status(500).json({ error: 'Failed to fetch channels' });
   }
 });
@@ -280,7 +282,7 @@ app.get('/channels/:channelKey', async (req, res) => {
       matches: channelMatches,
     });
   } catch (error) {
-    console.error('Error fetching channel:', error.message);
+    console.error('Error fetching channel:', error.stack || error);
     res.status(500).json({ error: 'Failed to fetch channel' });
   }
 });
@@ -291,7 +293,7 @@ app.get('/matches/live', async (req, res) => {
     const matches = await scheduleService.getActiveMatches();
     res.json(matches);
   } catch (error) {
-    console.error('Error fetching live matches:', error.message);
+    console.error('Error fetching live matches:', error.stack || error);
     res.status(500).json({ error: 'Failed to fetch live matches' });
   }
 });
@@ -302,7 +304,7 @@ app.get('/matches/upcoming', async (req, res) => {
     const matches = await scheduleService.getUpcomingMatches();
     res.json(matches);
   } catch (error) {
-    console.error('Error fetching upcoming matches:', error.message);
+    console.error('Error fetching upcoming matches:', error.stack || error);
     res.status(500).json({ error: 'Failed to fetch upcoming matches' });
   }
 });
@@ -313,7 +315,7 @@ app.get('/matches/all', async (req, res) => {
     const matches = await scheduleService.getScheduledMatches();
     res.json(matches);
   } catch (error) {
-    console.error('Error fetching all matches:', error.message);
+    console.error('Error fetching all matches:', error.stack || error);
     res.status(500).json({ error: 'Failed to fetch matches' });
   }
 });
@@ -324,7 +326,7 @@ app.get('/matches/youtube-links', async (req, res) => {
     const result = await youtubeService.getYoutubeLinks();
     res.json(result);
   } catch (error) {
-    console.error('Error fetching YouTube links:', error.message);
+    console.error('Error fetching YouTube links:', error.stack || error);
     res.status(500).json({ error: 'Failed to fetch YouTube links', links: [], cached: false });
   }
 });
@@ -345,7 +347,7 @@ app.get('/stream/config', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching stream config:', error.message);
+    console.error('Error fetching stream config:', error.stack || error);
     res.status(500).json({ error: 'Failed to fetch stream config' });
   }
 });
@@ -361,7 +363,7 @@ app.get('/admin/channels', requireAdmin, async (req, res) => {
     const channels = await channelService.getAllChannels();
     res.json(channels);
   } catch (error) {
-    console.error('Error fetching admin channels:', error.message);
+    console.error('Error fetching admin channels:', error.stack || error);
     res.status(500).json({ error: 'Failed to fetch channels' });
   }
 });
@@ -403,7 +405,7 @@ app.post('/admin/channels/:channelKey/update-url', async (req, res) => {
       inspection: { active: activeInspection, secondary: secondaryInspection },
     });
   } catch (error) {
-    console.error('Error updating channel URL:', error.message);
+    console.error('Error updating channel URL:', error.stack || error);
     res.status(500).json({ error: 'Failed to update channel URL', success: false });
   }
 });
@@ -420,7 +422,7 @@ app.post('/admin/channels/:channelKey/toggle', async (req, res) => {
     const updatedChannel = await channelService.setChannelActive(req.params.channelKey, !!isActive);
     res.json({ success: true, updatedChannel });
   } catch (error) {
-    console.error('Error toggling channel:', error.message);
+    console.error('Error toggling channel:', error.stack || error);
     res.status(500).json({ error: 'Failed to toggle channel', success: false });
   }
 });
@@ -444,7 +446,7 @@ app.post('/admin/matches/create', async (req, res) => {
     const match = await scheduleService.createMatch(matchData);
     res.json({ success: true, match });
   } catch (error) {
-    console.error('Error creating match:', error.message);
+    console.error('Error creating match:', error.stack || error);
     res.status(500).json({ error: 'Failed to create match', success: false });
   }
 });
@@ -461,7 +463,7 @@ app.put('/admin/matches/:id/update', async (req, res) => {
     const match = await scheduleService.updateMatch(req.params.id, matchData);
     res.json({ success: true, match });
   } catch (error) {
-    console.error('Error updating match:', error.message);
+    console.error('Error updating match:', error.stack || error);
     res.status(500).json({ error: 'Failed to update match', success: false });
   }
 });
@@ -478,7 +480,7 @@ app.delete('/admin/matches/:id', async (req, res) => {
     const result = await scheduleService.deleteMatch(req.params.id);
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Error deleting match:', error.message);
+    console.error('Error deleting match:', error.stack || error);
     res.status(500).json({ error: 'Failed to delete match', success: false });
   }
 });
@@ -489,7 +491,7 @@ app.post('/admin/refresh-youtube', requireAdmin, async (req, res) => {
     const result = await youtubeService.forceRefreshYoutube();
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Error refreshing YouTube cache:', error.message);
+    console.error('Error refreshing YouTube cache:', error.stack || error);
     res.status(500).json({ error: 'Failed to refresh YouTube cache', success: false });
   }
 });
@@ -519,7 +521,7 @@ app.post('/admin/transcode/start', async (req, res) => {
     const result = transcoderService.startTranscoding(channelKey, channel.activeUrl);
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Error starting transcoding:', error.message);
+    console.error('Error starting transcoding:', error.stack || error);
     res.status(500).json({ error: error.message, success: false });
   }
 });
@@ -540,7 +542,7 @@ app.post('/admin/transcode/stop', async (req, res) => {
     const result = transcoderService.stopTranscoding(channelKey);
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Error stopping transcoding:', error.message);
+    console.error('Error stopping transcoding:', error.stack || error);
     res.status(500).json({ error: error.message, success: false });
   }
 });
@@ -551,7 +553,7 @@ app.get('/admin/transcode/status', requireAdmin, async (req, res) => {
     const status = transcoderService.getTranscodingStatus();
     res.json({ status });
   } catch (error) {
-    console.error('Error getting transcode status:', error.message);
+    console.error('Error getting transcode status:', error.stack || error);
     res.status(500).json({ error: 'Failed to get transcode status' });
   }
 });
@@ -590,9 +592,10 @@ app.get('/admin/check-status', requireAdmin, async (req, res) => {
 // START SERVER
 // ═════════════════════════════════════════════════════════════
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 StreamX Proxy Server running on port ${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 StreamX Proxy Server running on 0.0.0.0:${PORT}`);
   console.log(`   Health:       http://localhost:${PORT}/health`);
+  console.log(`   Ping:         http://localhost:${PORT}/ping`);
   console.log(`   Channels:     http://localhost:${PORT}/channels`);
   console.log(`   Matches:      http://localhost:${PORT}/matches/all`);
   console.log(`   Stream:       http://localhost:${PORT}/stream/{channelKey}/index.m3u8`);
@@ -600,4 +603,13 @@ app.listen(PORT, () => {
   console.log(`   YouTube:      http://localhost:${PORT}/matches/youtube-links`);
   console.log(`   Admin:        http://localhost:${PORT}/admin/channels`);
   console.log(`   Database:     Supabase\n`);
+});
+
+// ─── Graceful Shutdown ───────────────────────────────────────
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('HTTP server closed.');
+    process.exit(0);
+  });
 });
